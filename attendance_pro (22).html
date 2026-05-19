@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkTrack Pro | ระบบบันทึกการมาทำงาน</title>
+<!-- ── LOGIN SCREEN ── -->
+<style>
+#loginScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#e8f0fe 0%,#f0f4f9 50%,#e0edff 100%);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#loginScreen.hidden{display:none;}
+.login-card{
+  background:#fff;border-radius:20px;padding:44px 40px;width:100%;max-width:420px;
+  box-shadow:0 8px 40px rgba(37,99,235,0.14),0 2px 8px rgba(26,36,64,0.08);
+  animation:loginIn .4s cubic-bezier(.22,.68,0,1.2);
+}
+@keyframes loginIn{from{opacity:0;transform:translateY(24px) scale(.97);}to{opacity:1;transform:none;}}
+.login-logo{text-align:center;margin-bottom:28px;}
+.login-logo-icon{
+  width:60px;height:60px;background:var(--accent);border-radius:16px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:28px;box-shadow:0 6px 20px rgba(37,99,235,0.4);margin-bottom:12px;
+}
+.login-logo h1{font-size:22px;font-weight:800;color:var(--text);}
+.login-logo p{font-size:13px;color:var(--text3);}
+.login-field{margin-bottom:14px;}
+.login-label{display:block;font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.login-input{
+  width:100%;background:var(--bg3);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:11px 14px;
+  color:var(--text);font-family:'Sarabun',sans-serif;font-size:14px;outline:none;
+  transition:border-color .15s;
+}
+.login-input:focus{border-color:var(--accent);background:#fff;}
+.login-btn{
+  width:100%;background:var(--accent);color:#fff;border:none;
+  border-radius:var(--radius-sm);padding:13px;font-family:'Sarabun',sans-serif;
+  font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;
+  box-shadow:0 4px 14px rgba(37,99,235,0.35);transition:all .15s;
+}
+.login-btn:hover{background:var(--accent2);transform:translateY(-1px);}
+.login-error{color:var(--red);font-size:12.5px;font-weight:600;margin-top:8px;text-align:center;display:none;}
+
+.demo-role{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.role-admin{background:rgba(220,38,38,.1);color:var(--red);}
+.role-manager{background:rgba(37,99,235,.1);color:var(--accent);}
+.role-supervisor{background:rgba(5,150,105,.1);color:var(--green);}
+.role-viewer{background:rgba(124,58,237,.1);color:var(--purple);}
+
+/* ── ROLE CHIP in topbar ── */
+.role-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:700;
+}
+/* ── DOWNLOAD MENU ── */
+.dl-dropdown{position:relative;display:inline-block;}
+.dl-menu{
+  position:absolute;right:0;top:calc(100% + 6px);
+  background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);
+  box-shadow:var(--shadow-md);z-index:200;min-width:200px;
+  display:none;animation:fadeIn .15s ease;
+}
+.dl-menu.open{display:block;}
+.dl-item{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);
+  transition:background .12s;border-bottom:1px solid var(--border);
+}
+.dl-item:last-child{border-bottom:none;}
+.dl-item:hover{background:var(--accent-bg);color:var(--accent);}
+.dl-item .dl-icon{font-size:16px;width:20px;text-align:center;}
+
+/* ── ACCESS DENIED ── */
+.access-denied{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;text-align:center;color:var(--text3);
+}
+.access-denied .icon{font-size:52px;margin-bottom:14px;}
+.access-denied h3{font-size:16px;font-weight:700;color:var(--text2);margin-bottom:6px;}
+.access-denied p{font-size:13px;}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:       #f0f4f9;
+  --bg2:      #ffffff;
+  --bg3:      #f7f9fc;
+  --bg4:      #eef2f8;
+  --card:     #ffffff;
+  --border:   #dde4ef;
+  --border2:  #c5d0e6;
+  --text:     #1a2440;
+  --text2:    #4a5980;
+  --text3:    #8898b8;
+  --accent:   #2563eb;
+  --accent2:  #3b7cf7;
+  --accent-bg:#ebf1ff;
+  --green:    #059669;
+  --green-bg: #ecfdf5;
+  --yellow:   #d97706;
+  --yellow-bg:#fffbeb;
+  --red:      #dc2626;
+  --red-bg:   #fef2f2;
+  --orange:   #ea580c;
+  --orange-bg:#fff7ed;
+  --purple:   #7c3aed;
+  --purple-bg:#f5f3ff;
+  --shift-a:  #2563eb;
+  --shift-b:  #059669;
+  --shift-c:  #d97706;
+  --radius:   14px;
+  --radius-sm:8px;
+  --shadow:   0 1px 3px rgba(26,36,64,0.08), 0 4px 16px rgba(26,36,64,0.06);
+  --shadow-md:0 4px 20px rgba(26,36,64,0.12);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg3);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ─── LAYOUT ─── */
+.layout{display:flex;min-height:100vh;}
+
+/* ─── SIDEBAR ─── */
+.sidebar{
+  width:252px;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
+  z-index:100;transition:transform .3s ease;box-shadow:2px 0 12px rgba(26,36,64,0.05);
+}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+.logo-mark{
+  display:flex;align-items:center;gap:10px;margin-bottom:2px;
+}
+.logo-icon{
+  width:38px;height:38px;background:var(--accent);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;
+  box-shadow:0 4px 12px rgba(37,99,235,0.35);
+}
+.logo-text h2{font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.3px;}
+.logo-text p{font-size:11px;color:var(--text3);}
+
+/* Factory selector */
+.factory-selector{margin:12px 16px 0;position:relative;}
+.factory-selector select{
+  width:100%;background:var(--bg3);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:8px 32px 8px 12px;
+  color:var(--text);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;
+  appearance:none;outline:none;cursor:pointer;
+}
+.factory-selector::after{
+  content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  color:var(--text3);pointer-events:none;font-size:12px;
+}
+
+.nav-section{padding:10px 0;flex:1;overflow-y:auto;}
+.nav-group-label{
+  font-size:10px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:1.5px;
+  padding:10px 20px 4px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;margin:1px 8px;
+  color:var(--text2);cursor:pointer;border-radius:var(--radius-sm);
+  transition:all .15s;font-size:13.5px;font-weight:500;
+}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--accent-bg);color:var(--accent);font-weight:700;}
+.nav-item .icon{font-size:16px;width:22px;text-align:center;}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+}
+
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);}
+.user-avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#6d28d9);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.user-info p{font-size:13px;font-weight:700;color:var(--text);}
+.user-info span{font-size:11px;color:var(--text3);}
+
+/* ─── MAIN ─── */
+.main{margin-left:252px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ─── TOPBAR ─── */
+.topbar{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:13px 24px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.hamburger{display:none;background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;padding:4px;}
+.page-title{font-size:17px;font-weight:800;color:var(--text);}
+.page-subtitle{font-size:11.5px;color:var(--text3);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-chip{
+  display:flex;align-items:center;gap:6px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:20px;padding:5px 12px;
+  font-size:12px;color:var(--text2);
+}
+.topbar-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+
+/* ─── BUTTON ─── */
+.btn{
+  padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;
+  font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;
+  transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.3);}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.4);}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text);}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:hover{opacity:.9;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{opacity:.9;}
+.btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
+.btn-outline:hover{background:var(--accent-bg);}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn-xs{padding:3px 8px;font-size:11px;}
+
+/* ─── CONTENT ─── */
+.content{padding:22px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* ─── FILTER BAR ─── */
+.filter-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;
+  margin-bottom:20px;box-shadow:var(--shadow);
+}
+.filter-bar label{font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-bar select,.filter-bar input[type=date]{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:6px 10px;
+  color:var(--text);font-family:'Sarabun',sans-serif;font-size:13px;
+  outline:none;cursor:pointer;
+}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--accent);}
+.filter-divider{width:1px;height:24px;background:var(--border);margin:0 4px;}
+
+/* ─── STAT CARDS ─── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:14px;margin-bottom:20px;}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 20px;
+  box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.stat-card::after{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;border-radius:50%;opacity:.07;
+}
+.stat-card.blue::after{background:var(--accent);}
+.stat-card.green::after{background:var(--green);}
+.stat-card.yellow::after{background:var(--yellow);}
+.stat-card.red::after{background:var(--red);}
+.stat-card.purple::after{background:var(--purple);}
+.stat-icon{
+  width:36px;height:36px;border-radius:10px;display:flex;
+  align-items:center;justify-content:center;font-size:16px;margin-bottom:12px;
+}
+.stat-card.blue .stat-icon{background:var(--accent-bg);color:var(--accent);}
+.stat-card.green .stat-icon{background:var(--green-bg);color:var(--green);}
+.stat-card.yellow .stat-icon{background:var(--yellow-bg);color:var(--yellow);}
+.stat-card.red .stat-icon{background:var(--red-bg);color:var(--red);}
+.stat-card.purple .stat-icon{background:var(--purple-bg);color:var(--purple);}
+.stat-label{font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+.stat-value{font-size:28px;font-weight:800;margin:2px 0;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+.stat-card.blue .stat-value{color:var(--accent);}
+.stat-card.green .stat-value{color:var(--green);}
+.stat-card.yellow .stat-value{color:var(--yellow);}
+.stat-card.red .stat-value{color:var(--red);}
+.stat-card.purple .stat-value{color:var(--purple);}
+.stat-sub{font-size:11.5px;color:var(--text3);}
+
+/* ─── CARD ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px;}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
+.card-body{padding:20px;}
+
+/* ─── GRID ─── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:18px;}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:10px 14px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap;background:var(--bg3);}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13.5px;color:var(--text2);}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--accent-bg);}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;gap:4px;}
+.badge-present{background:var(--green-bg);color:var(--green);}
+.badge-absent{background:var(--red-bg);color:var(--red);}
+.badge-late{background:var(--yellow-bg);color:var(--yellow);}
+.badge-leave{background:var(--purple-bg);color:var(--purple);}
+.badge-business{background:#e0f7fa;color:#0891b2;}
+.badge-sick{background:var(--orange-bg);color:var(--orange);}
+.badge-a{background:var(--accent-bg);color:var(--shift-a);}
+.badge-b{background:var(--green-bg);color:var(--shift-b);}
+.badge-c{background:var(--yellow-bg);color:var(--shift-c);}
+.badge-day{background:#e0f7fa;color:#0891b2;}
+
+/* ─── SHIFT TABS ─── */
+.shift-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.shift-tab{
+  padding:8px 18px;border-radius:var(--radius-sm);border:1.5px solid var(--border);
+  cursor:pointer;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;
+  background:var(--bg3);color:var(--text3);transition:all .15s;
+}
+.shift-tab:hover{border-color:var(--border2);color:var(--text2);}
+.shift-tab.t-day{background:#e0f7fa;color:#0891b2;border-color:#0891b2;}
+.shift-tab.t-a{background:var(--accent-bg);color:var(--shift-a);border-color:var(--shift-a);}
+.shift-tab.t-b{background:var(--green-bg);color:var(--shift-b);border-color:var(--shift-b);}
+.shift-tab.t-c{background:var(--yellow-bg);color:var(--shift-c);border-color:var(--shift-c);}
+
+/* ─── ATT GRID ─── */
+.att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;}
+.att-card{
+  background:var(--bg3);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:13px 14px;
+  display:flex;align-items:center;gap:11px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.att-card:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(26,36,64,0.08);}
+.emp-avatar{
+  width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;
+}
+.emp-info{flex:1;min-width:0;}
+.emp-name{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.emp-meta{font-size:11px;color:var(--text3);display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.emp-meta span{display:flex;align-items:center;gap:2px;}
+.att-select{
+  background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:5px 8px;color:var(--text);font-family:'Sarabun',sans-serif;
+  font-size:12px;font-weight:600;outline:none;cursor:pointer;min-width:95px;
+}
+.att-select:focus{border-color:var(--accent);}
+.att-select.s-present{border-color:var(--green);color:var(--green);}
+.att-select.s-late{border-color:var(--yellow);color:var(--yellow);}
+.att-select.s-absent{border-color:var(--red);color:var(--red);}
+.att-select.s-leave{border-color:var(--purple);color:var(--purple);}
+.att-select.s-business{border-color:#0891b2;color:#0891b2;}
+.att-select.s-sick{border-color:var(--orange);color:var(--orange);}
+
+/* ─── FORM ─── */
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.form-control{
+  width:100%;background:var(--bg3);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);
+  font-family:'Sarabun',sans-serif;font-size:14px;outline:none;transition:border-color .15s;
+  -webkit-appearance:auto;appearance:auto;
+}
+select.form-control{cursor:pointer;}
+.form-control:focus{border-color:var(--accent);background:var(--bg2);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+
+/* ─── MODAL ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,36,64,0.4);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-md);animation:modalIn .2s ease;}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal-xl{max-width:820px;}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:800;color:var(--text);}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:22px;line-height:1;padding:2px;}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+
+/* ─── CHART ─── */
+.chart-container{position:relative;height:250px;}
+.chart-filter{display:flex;gap:6px;}
+.filter-pill{padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-family:'Sarabun',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}
+.filter-pill.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ─── PROGRESS ─── */
+.progress-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-top:5px;}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+
+/* ─── SEARCH ─── */
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;}
+.search-bar:focus-within{border-color:var(--accent);}
+.search-bar input{background:none;border:none;outline:none;color:var(--text);font-family:'Sarabun',sans-serif;font-size:13.5px;flex:1;}
+.search-bar input::placeholder{color:var(--text3);}
+
+/* ─── EXCEL UPLOAD ─── */
+.upload-zone{
+  border:2px dashed var(--border2);border-radius:var(--radius);
+  padding:32px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;
+  background:var(--bg3);
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-bg);}
+.upload-icon{font-size:40px;margin-bottom:10px;}
+.upload-label{font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px;}
+.upload-sub{font-size:12px;color:var(--text3);}
+.upload-zone input[type=file]{display:none;}
+
+/* column mapper */
+.col-mapper{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-top:14px;}
+.col-mapper-header{background:var(--bg3);padding:10px 14px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;}
+.col-map-row{padding:8px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;}
+.col-map-row:nth-child(even){background:var(--bg3);}
+.col-field{font-size:13px;font-weight:600;color:var(--text);}
+.col-arrow{color:var(--text3);text-align:center;font-size:14px;}
+.col-select{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-family:'Sarabun',sans-serif;font-size:12.5px;color:var(--text);outline:none;width:100%;}
+.col-select:focus{border-color:var(--accent);}
+
+/* preview table */
+.preview-table-wrap{max-height:200px;overflow:auto;margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);}
+.preview-table-wrap table th{background:var(--bg3);position:sticky;top:0;}
+
+/* ─── TOAST ─── */
+#toast{
+  position:fixed;bottom:22px;right:22px;z-index:999;
+  background:var(--text);color:#fff;
+  border-radius:var(--radius-sm);padding:11px 18px;
+  font-size:13px;font-weight:600;box-shadow:var(--shadow-md);
+  transform:translateY(60px);opacity:0;transition:all .3s ease;
+  display:flex;align-items:center;gap:8px;
+}
+#toast.show{transform:translateY(0);opacity:1;}
+
+/* ─── SIDEBAR OVERLAY ─── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(26,36,64,0.4);z-index:99;}
+.sidebar-overlay.open{display:block;}
+
+/* ─── WORKCELL BADGE ─── */
+.wc-badge{
+  display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:11px;font-weight:700;background:var(--bg4);color:var(--text2);
+  border:1px solid var(--border);
+}
+
+/* ─── DONUT INFO ─── */
+.donut-info{display:flex;flex-direction:column;gap:9px;justify-content:center;}
+.donut-row{display:flex;align-items:center;gap:9px;}
+.donut-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.donut-label{font-size:12.5px;color:var(--text2);flex:1;}
+.donut-val{font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .hamburger{display:block;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .content{padding:14px;}
+  .filter-bar{gap:8px;}
+}
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:1fr;}
+}
+
+/* ─── SECTION HEADER ─── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.section-title{font-size:16px;font-weight:800;color:var(--text);}
+
+/* ─── EMPTY ─── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-state .icon{font-size:44px;margin-bottom:10px;opacity:.5;}
+.empty-state p{font-size:14px;}
+
+/* ─── IMPORT STEPS ─── */
+.import-steps{display:flex;gap:0;margin-bottom:20px;}
+.import-step{
+  flex:1;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);
+  font-size:12px;font-weight:700;color:var(--text3);text-align:center;
+  position:relative;
+}
+.import-step:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);}
+.import-step:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;}
+.import-step.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
+.import-step.done{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+.step-num{display:block;font-size:16px;font-weight:800;margin-bottom:2px;}
+
+/* rate ring */
+.rate-circle{
+  width:72px;height:72px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(var(--green) var(--pct,0%), var(--bg4) 0%);
+  position:relative;
+}
+.rate-circle::before{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--card);}
+.rate-val{position:relative;z-index:1;font-size:12px;font-weight:800;color:var(--green);font-family:'IBM Plex Mono',monospace;}
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN SCREEN ════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🏭</div>
+      <h1>WorkTrack Pro</h1>
+      <p>ระบบบันทึกการมาทำงาน ฝ่ายผลิต</p>
+    </div>
+    <div class="login-field">
+      <label class="login-label">ชื่อผู้ใช้ (Username)</label>
+      <input class="login-input" id="loginUser" type="text" placeholder="กรอก username" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label class="login-label">รหัสผ่าน (Password)</label>
+      <input class="login-input" id="loginPass" type="password" placeholder="กรอก password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="loginError">❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="layout">
+<!-- ════ SIDEBAR ════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">🏭</div>
+      <div class="logo-text">
+        <h2>WorkTrack Pro</h2>
+        <p>ระบบบันทึกการมาทำงาน</p>
+      </div>
+    </div>
+    <div class="factory-selector" style="margin-top:12px;">
+      <select id="factorySelect" onchange="onFactoryChange()">
+        <option value="all">🏭 ทุกโรงงาน</option>
+        <option value="AVP1">AVP1</option>
+        <option value="AVP2">AVP2</option>
+        <option value="AVP3">AVP3</option>
+        <option value="AVP4">AVP4</option>
+        <option value="AVP5">AVP5</option>
+        <option value="Mold">Mold</option>
+        <option value="Logistic">Logistic</option>
+      </select>
+    </div>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-group-label">หน้าหลัก</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span>แดชบอร์ด</div>
+    <div class="nav-item" onclick="showPage('attendance')"><span class="icon">✅</span>บันทึกการมาทำงาน<span class="nav-badge" id="pendingBadge">0</span></div>
+    <div class="nav-group-label">จัดการข้อมูล</div>
+    <div class="nav-item" onclick="showPage('employees')"><span class="icon">👥</span>รายชื่อพนักงาน</div>
+    <div class="nav-item" onclick="showPage('import')"><span class="icon">📥</span>นำเข้า Excel</div>
+    <div class="nav-item" onclick="showPage('report')"><span class="icon">📈</span>รายงานสถิติ</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">สว</div>
+      <div class="user-info"><p>หัวหน้าสายงาน</p><span>Supervisor</span></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ════ MAIN ════ -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="page-title" id="pageTitle">แดชบอร์ด</div>
+        <div class="page-subtitle" id="pageSubtitle">ภาพรวมการมาทำงาน</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-chip"><div class="dot"></div><span id="topDate"></span></div>
+      <span id="topRoleChip" class="role-chip" style="font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;"></span>
+      <span id="topUserName" style="font-size:13px;font-weight:700;color:var(--text2);"></span>
+      <button class="btn btn-primary btn-sm" id="btnRecordToday" onclick="showPage('attendance')">+ บันทึกวันนี้</button>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="ออกจากระบบ" style="padding:7px 10px;">🚪</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ════ DASHBOARD ════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="filter-bar">
+        <div class="filter-group"><label>โรงงาน</label>
+          <select id="db-factory" onchange="renderDashboard()">
+            <option value="">ทั้งหมด</option>
+            <option value="AVP1">AVP1</option><option value="AVP2">AVP2</option><option value="AVP3">AVP3</option><option value="AVP4">AVP4</option><option value="AVP5">AVP5</option><option value="Mold">Mold</option><option value="Logistic">Logistic</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>Workcell</label>
+          <select id="db-wc" onchange="renderDashboard()"><option value="">ทั้งหมด</option></select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>กะ</label>
+          <select id="db-shift" onchange="renderDashboard()">
+            <option value="">ทั้งหมด</option>
+            <option value="Day">กะ Day</option>
+            <option value="A">กะ A</option>
+            <option value="B">กะ B</option>
+            <option value="C">กะ C</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>ช่วงเวลา</label>
+          <select id="db-mode" onchange="onDbModeChange()">
+            <option value="day">รายวัน</option>
+            <option value="range">ช่วงวันที่</option>
+            <option value="month">รายเดือน</option>
+          </select>
+        </div>
+        <!-- day mode -->
+        <div id="db-day-wrap" class="filter-group">
+          <input type="date" id="db-date" onchange="renderDashboard()">
+        </div>
+        <!-- range mode -->
+        <div id="db-range-wrap" class="filter-group" style="display:none;gap:4px;">
+          <input type="date" id="db-from" onchange="renderDashboard()" style="width:130px;">
+          <span style="color:var(--text3);font-size:13px;">ถึง</span>
+          <input type="date" id="db-to"   onchange="renderDashboard()" style="width:130px;">
+        </div>
+        <!-- month mode -->
+        <div id="db-month-wrap" class="filter-group" style="display:none;">
+          <input type="month" id="db-month" onchange="renderDashboard()">
+        </div>
+      </div>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📋 สรุปรายกะ</div><span id="dashDateLabel" style="font-size:12px;color:var(--text3);"></span></div>
+          <div class="card-body" id="shiftSummary"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🎯 สัดส่วนสถานะวันนี้</div></div>
+          <div class="card-body" style="display:flex;align-items:center;gap:20px;">
+            <canvas id="donutChart" width="150" height="150" style="flex-shrink:0;"></canvas>
+            <div class="donut-info" id="donutInfo"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📅 แนวโน้มการมาทำงาน</div>
+          <div class="chart-filter">
+            <button class="filter-pill active" onclick="switchTrend('week',this)">สัปดาห์</button>
+            <button class="filter-pill" onclick="switchTrend('month',this)">เดือน</button>
+          </div>
+        </div>
+        <div class="card-body"><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">📝 บันทึกล่าสุด</div><button class="btn btn-ghost btn-sm" onclick="showPage('attendance')">ดูทั้งหมด →</button></div>
+        <div class="table-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>โรงงาน</th><th>Workcell</th><th>กะ</th><th>สถานะ</th></tr></thead><tbody id="recentTable"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ════ ATTENDANCE ════ -->
+    <div class="page" id="page-attendance">
+      <div class="section-header">
+        <div>
+          <div class="section-title">บันทึกการมาทำงาน</div>
+          <div style="font-size:12px;color:var(--text3);" id="attInfo"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="date" class="form-control" id="attDate" style="width:auto;" onchange="renderAttPage()">
+          <button class="btn btn-success btn-sm" onclick="saveAll()">💾 บันทึกทั้งหมด</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-group"><label>โรงงาน</label>
+          <select id="att-factory" onchange="renderAttPage()">
+            <option value="">ทั้งหมด</option>
+            <option value="AVP1">AVP1</option><option value="AVP2">AVP2</option><option value="AVP3">AVP3</option><option value="AVP4">AVP4</option><option value="AVP5">AVP5</option><option value="Mold">Mold</option><option value="Logistic">Logistic</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>Workcell</label>
+          <select id="att-wc" onchange="renderAttPage()"><option value="">ทั้งหมด</option></select>
+        </div>
+      </div>
+
+      <div class="shift-tabs" id="shiftTabs">
+        <button class="shift-tab t-day" onclick="selectShift('Day',this)">กะ Day</button>
+        <button class="shift-tab" onclick="selectShift('A',this)">กะ A</button>
+        <button class="shift-tab" onclick="selectShift('B',this)">กะ B</button>
+        <button class="shift-tab" onclick="selectShift('C',this)">กะ C</button>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-body" style="padding:12px 18px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:12.5px;font-weight:700;color:var(--text3);">ตั้งค่าทั้งกะ :</span>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('present')">✅ มาทำงาน</button>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('late')">⏰ มาสาย</button>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('absent')">❌ ขาดงาน</button>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('leave')">📋 ลาพักร้อน</button>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('business')">🏢 ลากิจ</button>
+            <button class="btn btn-ghost btn-sm" onclick="bulkSet('sick')">🤒 ลาป่วย</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="att-grid" id="attGrid"></div>
+    </div>
+
+    <!-- ════ EMPLOYEES ════ -->
+    <div class="page" id="page-employees">
+      <div class="section-header">
+        <div class="section-title">รายชื่อพนักงาน (<span id="empCount">0</span> คน)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="showPage('import')">📥 นำเข้า Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="openAddEmp()">+ เพิ่มพนักงาน</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-bar" style="flex:1;min-width:180px;">
+          <span style="color:var(--text3);">🔍</span>
+          <input type="text" id="empSearch" placeholder="ค้นหา ชื่อ / รหัส / Workcell..." oninput="renderEmpTable()">
+        </div>
+        <div class="filter-divider"></div>
+        <select class="form-control" id="empFactFilter" style="width:auto;" onchange="renderEmpTable()">
+          <option value="">ทุกโรงงาน</option>
+          <option value="AVP1">AVP1</option><option value="AVP2">AVP2</option><option value="AVP3">AVP3</option><option value="AVP4">AVP4</option><option value="AVP5">AVP5</option><option value="Mold">Mold</option><option value="Logistic">Logistic</option>
+        </select>
+        <select class="form-control" id="empShiftFilter" style="width:auto;" onchange="renderEmpTable()">
+          <option value="">ทุกกะ</option>
+          <option value="Day">กะ Day</option>
+          <option value="A">กะ A</option><option value="B">กะ B</option><option value="C">กะ C</option>
+        </select>
+        <select class="form-control" id="empWcFilter" style="width:auto;" onchange="renderEmpTable()">
+          <option value="">ทุก Workcell</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>โรงงาน</th><th>Workcell</th><th>กะ</th><th>อัตราเข้างาน</th><th>จัดการ</th></tr></thead>
+            <tbody id="empTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ IMPORT ════ -->
+    <div class="page" id="page-import">
+      <div class="section-header">
+        <div class="section-title">นำเข้ารายชื่อพนักงานจาก Excel</div>
+        <a href="#" onclick="downloadTemplate()" class="btn btn-outline btn-sm">⬇️ ดาวน์โหลด Template</a>
+      </div>
+
+      <!-- Steps -->
+      <div class="import-steps" id="importSteps">
+        <div class="import-step active" id="step1"><span class="step-num">1</span>อัปโหลดไฟล์</div>
+        <div class="import-step" id="step2"><span class="step-num">2</span>กำหนด Column</div>
+        <div class="import-step" id="step3"><span class="step-num">3</span>ตรวจสอบ & นำเข้า</div>
+      </div>
+
+      <!-- Step 1: Upload -->
+      <div id="importStep1">
+        <div class="card">
+          <div class="card-body">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('xlFile').click()"
+              ondragover="event.preventDefault();this.classList.add('drag')"
+              ondragleave="this.classList.remove('drag')"
+              ondrop="onDrop(event)">
+              <div class="upload-icon">📊</div>
+              <div class="upload-label">คลิกหรือลากไฟล์ Excel มาวางที่นี่</div>
+              <div class="upload-sub">รองรับไฟล์ .xlsx, .xls · ขนาดไม่เกิน 5 MB</div>
+              <input type="file" id="xlFile" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+            </div>
+            <div style="margin-top:16px;padding:14px 16px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius-sm);">
+              <div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:8px;">📌 รูปแบบข้อมูลที่รองรับ</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <span class="wc-badge">รหัสพนักงาน</span><span class="wc-badge">ชื่อ</span><span class="wc-badge">นามสกุล</span>
+                <span class="wc-badge">ตำแหน่ง</span><span class="wc-badge">โรงงาน</span><span class="wc-badge">กะ (A/B/C)</span>
+                <span class="wc-badge">Workcell</span><span class="wc-badge">กระบวนการ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Column Mapper -->
+      <div id="importStep2" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🗂️ กำหนด Column ข้อมูล</div>
+            <div style="font-size:12px;color:var(--text3);">พบ <span id="xlRowCount">0</span> แถว · <span id="xlColCount">0</span> คอลัมน์</div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">เลือกคอลัมน์จากไฟล์ Excel ที่ตรงกับแต่ละช่องข้อมูล (<span style="color:var(--red);">*</span> จำเป็น)</div>
+            <div class="col-mapper">
+              <div class="col-mapper-header"><div>ช่องข้อมูลในระบบ</div><div></div><div>คอลัมน์ใน Excel</div></div>
+              <div id="colMapRows"></div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <div style="font-size:12.5px;font-weight:700;color:var(--text3);margin-bottom:8px;">ตัวอย่างข้อมูล (5 แถวแรก)</div>
+              <div class="preview-table-wrap" id="previewTable"></div>
+            </div>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--border);">
+            <button class="btn btn-ghost" onclick="resetImport()">← กลับ</button>
+            <button class="btn btn-primary" onclick="goStep3()">ถัดไป: ตรวจสอบ →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Preview & Confirm -->
+      <div id="importStep3" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">✅ ตรวจสอบก่อนนำเข้า</div>
+            <div id="importSummary" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+          <div class="table-wrap" id="importPreviewTable"></div>
+          <div class="modal-footer" style="border-top:1px solid var(--border);">
+            <button class="btn btn-ghost" onclick="goStep2()">← แก้ไข</button>
+            <button class="btn btn-success" onclick="confirmImport()">✅ นำเข้าข้อมูล (<span id="importCount">0</span> คน)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ REPORT ════ -->
+    <div class="page" id="page-report">
+      <div class="section-header">
+        <div class="section-title">รายงานสถิติการมาทำงาน</div>
+        <div class="dl-dropdown" id="dlDropdown">
+          <button class="btn btn-success btn-sm" onclick="toggleDlMenu()">⬇️ ดาวน์โหลด ▾</button>
+          <div class="dl-menu" id="dlMenu">
+            <div class="dl-item" onclick="downloadReport('xlsx')"><span class="dl-icon">📊</span>Excel (.xlsx) รายละเอียด</div>
+            <div class="dl-item" onclick="downloadReport('summary')"><span class="dl-icon">📋</span>Excel สรุปรายกะ</div>
+            <div class="dl-item" onclick="downloadReport('csv')"><span class="dl-icon">📄</span>CSV (ทุก field)</div>
+            <div class="dl-item" onclick="downloadReport('print')"><span class="dl-icon">🖨️</span>พิมพ์รายงาน (Print)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-group"><label>โรงงาน</label>
+          <select id="rpt-factory" onchange="renderReport()">
+            <option value="">ทั้งหมด</option>
+            <option value="AVP1">AVP1</option><option value="AVP2">AVP2</option><option value="AVP3">AVP3</option><option value="AVP4">AVP4</option><option value="AVP5">AVP5</option><option value="Mold">Mold</option><option value="Logistic">Logistic</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>Workcell</label>
+          <select id="rpt-wc" onchange="renderReport()"><option value="">ทั้งหมด</option></select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>กะ</label>
+          <select id="rpt-shift" onchange="renderReport()">
+            <option value="">ทั้งหมด</option><option value="Day">กะ Day</option><option value="A">กะ A</option><option value="B">กะ B</option><option value="C">กะ C</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>ช่วงเวลา</label>
+          <select id="rpt-range" onchange="renderReport()">
+            <option value="week">รายสัปดาห์</option>
+            <option value="month">รายเดือน</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="rptStats"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 อัตราเข้างานรายวัน</div></div>
+          <div class="card-body"><div class="chart-container"><canvas id="rptLine"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🥧 สัดส่วนสถานะรวม</div></div>
+          <div class="card-body"><div class="chart-container"><canvas id="rptDonut"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header"><div class="card-title">🏭 เปรียบเทียบรายโรงงาน</div></div>
+        <div class="card-body"><div class="chart-container"><canvas id="rptBar"></canvas></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 สรุปรายพนักงาน</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ชื่อ</th><th>โรงงาน</th><th>Workcell</th><th>กะ</th><th>มา</th><th>ขาด</th><th>สาย</th><th>ลาพักร้อน</th><th>ลากิจ</th><th>ป่วย</th><th>อัตรา</th></tr></thead>
+            <tbody id="rptTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ════ MODAL: Add/Edit Employee ════ -->
+<div class="modal-overlay" id="empModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="empModalTitle">เพิ่มพนักงานใหม่</div>
+      <button class="modal-close" onclick="closeModal('empModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="eEditId">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">รหัสพนักงาน *</label><input class="form-control" id="eCode" placeholder="EMP001"></div>
+        <div class="form-group"><label class="form-label">กะ *</label>
+          <select class="form-control" id="eShift">
+            <option value="Day">กะ Day</option>
+            <option value="A">กะ A</option>
+            <option value="B">กะ B</option>
+            <option value="C">กะ C</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">ชื่อ-นามสกุล *</label><input class="form-control" id="eFullName" placeholder="เช่น สมชาย ใจดี"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">ตำแหน่ง</label><input class="form-control" id="ePos" placeholder="พนักงานผลิต"></div>
+        <div class="form-group"><label class="form-label">โรงงาน *</label>
+          <select class="form-control" id="eFactory">
+            <option value="AVP1">AVP1</option>
+            <option value="AVP2">AVP2</option>
+            <option value="AVP3">AVP3</option>
+            <option value="AVP4">AVP4</option>
+            <option value="AVP5">AVP5</option>
+            <option value="Mold">Mold</option>
+            <option value="Logistic">Logistic</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Workcell</label><input class="form-control" id="eWc" placeholder="WC-01, Assembly, ..."></div>
+        <div class="form-group"><label class="form-label">กระบวนการ / Process</label><input class="form-control" id="eProcess" placeholder="Welding, QC, ..."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('empModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════
+const FACTORY_NAMES = {
+  AVP1:'AVP1', AVP2:'AVP2', AVP3:'AVP3', AVP4:'AVP4',
+  AVP5:'AVP5', Mold:'Mold', Logistic:'Logistic'
+};
+const SHIFT_INFO = {
+  Day:{label:'กะ Day',color:'#0891b2'},
+  A:  {label:'กะ A', color:'#2563eb'},
+  B:  {label:'กะ B', color:'#059669'},
+  C:  {label:'กะ C', color:'#d97706'}
+};
+const ALL_SHIFTS=['Day','A','B','C'];
+const STATUS_MAP = {
+  present:{label:'มาทำงาน',badge:'badge-present',emoji:'✅'},
+  absent: {label:'ขาดงาน', badge:'badge-absent', emoji:'❌'},
+  late:   {label:'มาสาย',  badge:'badge-late',   emoji:'⏰'},
+  leave:    {label:'ลาพักร้อน',badge:'badge-leave',  emoji:'📋'},
+  business: {label:'ลากิจ',     badge:'badge-business',emoji:'🏢'},
+  sick:   {label:'ลาป่วย', badge:'badge-sick',   emoji:'🤒'}
+};
+const COLORS_BG=['rgba(37,99,235,.7)','rgba(5,150,105,.7)','rgba(217,119,6,.7)','rgba(220,38,38,.7)','rgba(124,58,237,.7)','rgba(8,145,178,.7)'];
+const COLORS_BD=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2'];
+const AV_COLORS=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
+
+let employees = [
+  {id:1, code:'EMP001',firstName:'สมชาย',  lastName:'ใจดี',    position:'พนักงานผลิต',factory:'AVP1',shift:'Day',workcell:'WC-01',process:'Stamping'},
+  {id:2, code:'EMP002',firstName:'สมหญิง', lastName:'รักงาน',  position:'พนักงานผลิต',factory:'AVP1',shift:'Day',workcell:'WC-01',process:'Stamping'},
+  {id:3, code:'EMP003',firstName:'วิชัย',  lastName:'มานะ',    position:'เทคนิเชียน', factory:'AVP2',shift:'A',  workcell:'WC-02',process:'Welding'},
+  {id:4, code:'EMP004',firstName:'สุดา',   lastName:'ขยัน',    position:'พนักงานผลิต',factory:'AVP2',shift:'A',  workcell:'WC-02',process:'Welding'},
+  {id:5, code:'EMP005',firstName:'ประเสริฐ',lastName:'ทำดี',   position:'พนักงานผลิต',factory:'AVP3',shift:'B',  workcell:'WC-01',process:'Assembly'},
+  {id:6, code:'EMP006',firstName:'นภา',    lastName:'รุ่งเรือง',position:'เทคนิเชียน',factory:'AVP4',shift:'B',  workcell:'WC-01',process:'Painting'},
+  {id:7, code:'EMP007',firstName:'อำนาจ',  lastName:'เก่งงาน', position:'พนักงานผลิต',factory:'AVP4',shift:'Day',workcell:'WC-01',process:'Painting'},
+  {id:8, code:'EMP008',firstName:'มณี',    lastName:'สว่าง',   position:'พนักงานผลิต',factory:'AVP5',shift:'C',  workcell:'WC-01',process:'QC'},
+  {id:9, code:'EMP009',firstName:'ธีรชัย', lastName:'มุ่งมั่น',position:'เทคนิเชียน', factory:'Mold', shift:'C',  workcell:'WC-01',process:'Molding'},
+  {id:10,code:'EMP010',firstName:'กานดา',  lastName:'ใสใจ',    position:'พนักงานผลิต',factory:'Mold', shift:'A',  workcell:'WC-02',process:'Molding'},
+  {id:11,code:'EMP011',firstName:'บุญมี',  lastName:'ศรีสุข',  position:'พนักงานผลิต',factory:'Logistic',shift:'B',workcell:'WC-01',process:'Logistics'},
+  {id:12,code:'EMP012',firstName:'รัตนา',  lastName:'เจริญ',   position:'พนักงานผลิต',factory:'Logistic',shift:'Day',workcell:'WC-01',process:'Logistics'},
+];
+let nextId = 13;
+let attendanceData = {};  // {date: {empId: status}}
+let currentShift = 'Day';
+let trendChartObj=null, donutChartObj=null, rptLineObj=null, rptDonutObj=null, rptBarObj=null;
+
+// Excel import state
+let xlData=[], xlHeaders=[], mappedImportData=[];
+const SYSTEM_FIELDS = [
+  {key:'code',     label:'รหัสพนักงาน',              required:true},
+  {key:'fullName', label:'ชื่อ-นามสกุล (ช่องเดียว)', required:true},
+  {key:'position', label:'ตำแหน่ง',                  required:false},
+  {key:'factory',  label:'โรงงาน (AVP1-5/Mold/Logistic)', required:false},
+  {key:'shift',    label:'กะ (Day/A/B/C)',            required:false},
+  {key:'workcell', label:'Workcell',                  required:false},
+  {key:'process',  label:'กระบวนการ',                 required:false},
+];
+
+// ── helpers ──
+const today=()=>new Date().toISOString().split('T')[0];
+function fmtTH(d){const dt=new Date(d);const M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];return`${dt.getDate()} ${M[dt.getMonth()]} ${dt.getFullYear()+543}`;}
+function fmtMonthTH(y,m){const M=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];return`${M[m]} ${y+543}`;}
+function weekDates(){const d=new Date();const diff=d.getDate()-d.getDay()+(d.getDay()===0?-6:1);const m=new Date(d.setDate(diff));return Array.from({length:7},(_,i)=>{const x=new Date(m);x.setDate(m.getDate()+i);return x.toISOString().split('T')[0];});}
+function monthDates(y,m){
+  const now=new Date();
+  const yr=y!==undefined?y:now.getFullYear();
+  const mo=m!==undefined?m:now.getMonth();
+  const days=new Date(yr,mo+1,0).getDate();
+  return Array.from({length:days},(_,i)=>new Date(yr,mo,i+1).toISOString().split('T')[0]);
+}
+function dateRangeDates(from,to){
+  const dates=[];const cur=new Date(from);const end=new Date(to);
+  while(cur<=end){dates.push(cur.toISOString().split('T')[0]);cur.setDate(cur.getDate()+1);}
+  return dates;
+}
+function getStatus(date,empId){return(attendanceData[date]||{})[empId]||'present';}
+function allWorkcells(){return [...new Set(employees.map(e=>e.workcell).filter(Boolean))].sort();}
+function filteredEmps({factory='',shift='',workcell=''}={}){
+  return employees.filter(e=>(factory?e.factory===factory:true)&&(shift?e.shift===shift:true)&&(workcell?e.workcell===workcell:true));
+}
+function getDayStats(date,opts={}){
+  const emps=filteredEmps(opts);
+  const s={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:emps.length};
+  emps.forEach(e=>{const st=getStatus(date,e.id);s[st]=(s[st]||0)+1;});
+  s.rate=s.total?Math.round((s.present+s.late)/s.total*100):0;
+  return s;
+}
+function initData(){
+  const now=new Date();
+  // init 3 months back for demo richness
+  const allDates=[];
+  for(let mo=-2;mo<=0;mo++){
+    const y=now.getFullYear(),m=now.getMonth()+mo;
+    allDates.push(...monthDates(y<0?y+1:y, ((m%12)+12)%12));
+  }
+  [...new Set(allDates)].forEach(date=>{
+    if(!attendanceData[date]) attendanceData[date]={};
+    employees.forEach(e=>{
+      if(attendanceData[date][e.id]==null){
+        const r=Math.random();
+        attendanceData[date][e.id]=r<.76?'present':r<.87?'late':r<.90?'sick':r<.94?'leave':r<.97?'business':'absent';
+      }
+    });
+  });
+}
+function populateWcSelects(){
+  const wcs=allWorkcells();
+  ['db-wc','att-wc','rpt-wc','empWcFilter'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">ทุก Workcell</option>'+wcs.map(w=>`<option value="${w}">${w}</option>`).join('');
+    if(cur) el.value=cur;
+  });
+}
+
+// ── SIDEBAR ──
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+function onFactoryChange(){
+  const f=document.getElementById('factorySelect').value;
+  ['db-factory','att-factory','rpt-factory','empFactFilter'].forEach(id=>{
+    const el=document.getElementById(id);if(el&&f!=='all')el.value=f;else if(el)el.value='';
+  });
+  const pg=document.querySelector('.page.active');
+  if(pg){const id=pg.id.replace('page-','');if(id==='dashboard')renderDashboard();else if(id==='attendance')renderAttPage();else if(id==='employees')renderEmpTable();else if(id==='report')renderReport();}
+}
+
+// ── NAVIGATION ──
+const PAGE_INFO={
+  dashboard:['แดชบอร์ด','ภาพรวมการมาทำงาน'],
+  attendance:['บันทึกการมาทำงาน','กรอกข้อมูลแต่ละกะ'],
+  employees:['รายชื่อพนักงาน','จัดการข้อมูลพนักงาน'],
+  import:['นำเข้าจาก Excel','อัปโหลดและกำหนด Column'],
+  report:['รายงานสถิติ','วิเคราะห์การมาทำงาน'],
+};
+function showPage(id){
+  // Permission check
+  if(currentUser && !checkAccess(id)){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+id) && (document.getElementById('page-'+id).classList.add('active'));
+    // show access denied inside the page
+    const target=document.getElementById('page-'+id);
+    if(target) target.innerHTML=`<div class="access-denied"><div class="icon">🔒</div><h3>ไม่มีสิทธิ์เข้าถึง</h3><p>บัญชีของคุณ (${currentUser.roleLabel}) ไม่มีสิทธิ์เข้าหน้านี้</p></div>`;
+    return;
+  }
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim().includes(PAGE_INFO[id][0].slice(0,4)))n.classList.add('active');});
+  document.getElementById('pageTitle').textContent=PAGE_INFO[id][0];
+  document.getElementById('pageSubtitle').textContent=PAGE_INFO[id][1];
+  if(id==='dashboard')renderDashboard();
+  if(id==='attendance')renderAttPage();
+  if(id==='employees')renderEmpTable();
+  if(id==='report')renderReport();
+  closeSidebar();
+}
+
+// ══════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════
+function onDbModeChange(){
+  const mode=document.getElementById('db-mode').value;
+  document.getElementById('db-day-wrap').style.display   = mode==='day'   ?'':'none';
+  document.getElementById('db-range-wrap').style.display = mode==='range' ?'':'none';
+  document.getElementById('db-month-wrap').style.display = mode==='month' ?'':'none';
+  renderDashboard();
+}
+
+function getDbDates(){
+  const mode=document.getElementById('db-mode').value;
+  if(mode==='range'){
+    const f=document.getElementById('db-from').value;
+    const t=document.getElementById('db-to').value;
+    if(f&&t&&f<=t) return {dates:dateRangeDates(f,t), refDate:f, label:`${fmtTH(f)} – ${fmtTH(t)}`};
+    return {dates:[today()], refDate:today(), label:fmtTH(today())};
+  }
+  if(mode==='month'){
+    const mv=document.getElementById('db-month').value;
+    if(mv){const[y,m]=mv.split('-').map(Number);return{dates:monthDates(y,m-1),refDate:mv+'-01',label:fmtMonthTH(y,m-1)};}
+    const now=new Date();return{dates:monthDates(),refDate:today(),label:fmtMonthTH(now.getFullYear(),now.getMonth())};
+  }
+  // day
+  const t=document.getElementById('db-date').value||today();
+  return {dates:[t], refDate:t, label:fmtTH(t)};
+}
+
+function renderDashboard(){
+  const {dates, refDate, label} = getDbDates();
+  const fac=document.getElementById('db-factory').value;
+  const wc=document.getElementById('db-wc').value;
+  const sh=document.getElementById('db-shift').value;
+  const opts={factory:fac,workcell:wc,shift:sh};
+  const mode=document.getElementById('db-mode').value;
+
+  // aggregate stats across selected dates
+  let agg={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:0};
+  dates.forEach(d=>{const s=getDayStats(d,opts);['present','absent','late','leave','sick','business','total'].forEach(k=>agg[k]+=s[k]);});
+  const aggRate=agg.total?Math.round((agg.present+agg.late)/agg.total*100):0;
+
+  // use refDate for "today's" single-day cards
+  const dayS=getDayStats(refDate,opts);
+  const showAgg=(dates.length>1);
+  const displayS=showAgg?agg:dayS;
+  const displayRate=showAgg?aggRate:dayS.rate;
+
+  document.getElementById('dashDateLabel').textContent=label;
+
+  // week avg for stat card
+  const wd=weekDates();
+  const avgRate=Math.round(wd.reduce((a,d)=>a+getDayStats(d,opts).rate,0)/wd.length);
+  const emps=filteredEmps(opts);
+
+  document.getElementById('statGrid').innerHTML=`
+    <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-label">พนักงานที่กรอง</div><div class="stat-value">${emps.length}</div><div class="stat-sub">${Object.keys(FACTORY_NAMES).filter(k=>!fac||k===fac).map(k=>FACTORY_NAMES[k]).join(', ')}</div></div>
+    <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">${showAgg?'มาทำงาน (รวม)':'มาทำงานวันนี้'}</div><div class="stat-value">${displayS.present+displayS.late}</div><div class="stat-sub">จาก ${displayS.total} · ${displayRate}%</div></div>
+    <div class="stat-card red"><div class="stat-icon">❌</div><div class="stat-label">${showAgg?'ขาดงาน (รวม)':'ขาดงานวันนี้'}</div><div class="stat-value">${displayS.absent}</div><div class="stat-sub">${displayS.total?Math.round(displayS.absent/displayS.total*100):0}%</div></div>
+    <div class="stat-card yellow"><div class="stat-icon">⏰</div><div class="stat-label">${showAgg?'มาสาย (รวม)':'มาสายวันนี้'}</div><div class="stat-value">${displayS.late}</div><div class="stat-sub">ต้องติดตาม</div></div>
+    <div class="stat-card purple"><div class="stat-icon">📋</div><div class="stat-label">${showAgg?'ลางาน (รวม)':'ลางานวันนี้'}</div><div class="stat-value">${displayS.leave+displayS.sick+displayS.business}</div><div class="stat-sub">ลาพักร้อน+กิจ+ป่วย</div></div>
+    <div class="stat-card green"><div class="stat-icon">📈</div><div class="stat-label">เฉลี่ยสัปดาห์นี้</div><div class="stat-value">${avgRate}%</div><div class="stat-sub">อัตราการมาทำงาน</div></div>
+  `;
+
+  // Shift summary (use refDate for progress bars)
+  document.getElementById('shiftSummary').innerHTML=ALL_SHIFTS.map(s=>{
+    let p=0,tot=0;
+    dates.forEach(d=>{
+      const es=filteredEmps({factory:fac,workcell:wc,shift:s});
+      p+=es.filter(e=>['present','late'].includes(getStatus(d,e.id))).length;
+      tot+=es.length;
+    });
+    const pct=tot?Math.round(p/tot*100):0;
+    return`<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:800;color:${SHIFT_INFO[s].color};">${SHIFT_INFO[s].label} · ${SHIFT_INFO[s].time}</span>
+        <span style="font-size:13px;font-weight:700;">${p}/${tot} · ${pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${SHIFT_INFO[s].color};"></div></div>
+    </div>`;
+  }).join('');
+
+  // Donut
+  const dd=[displayS.present,displayS.late,displayS.absent,displayS.leave,displayS.sick,displayS.business||0];
+  const dl=['มาทำงาน','มาสาย','ขาดงาน','ลาพักร้อน','ลาป่วย','ลากิจ'];
+  if(donutChartObj)donutChartObj.destroy();
+  donutChartObj=new Chart(document.getElementById('donutChart'),{type:'doughnut',data:{labels:dl,datasets:[{data:dd,backgroundColor:COLORS_BG,borderColor:COLORS_BD,borderWidth:1.5,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:true,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} ครั้ง`}}}}});
+  document.getElementById('donutInfo').innerHTML=dl.map((l,i)=>`<div class="donut-row"><div class="donut-dot" style="background:${COLORS_BD[i]}"></div><div class="donut-label">${l}</div><div class="donut-val">${dd[i]}</div></div>`).join('');
+
+  // Trend chart — pick range based on mode
+  const trendDates = mode==='month'?dates: mode==='range'?dates: weekDates();
+  renderTrend(trendDates, opts, mode);
+
+  // Recent table
+  const re=filteredEmps(opts).slice(0,8);
+  document.getElementById('recentTable').innerHTML=re.map(e=>{
+    const st=getStatus(refDate,e.id);
+    return`<tr>
+      <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
+      <td style="font-weight:600;">${e.firstName} ${e.lastName}</td>
+      <td>${FACTORY_NAMES[e.factory]||e.factory}</td>
+      <td><span class="wc-badge">${e.workcell||'–'}</span></td>
+      <td><span class="badge badge-${e.shift.toLowerCase()}">${SHIFT_INFO[e.shift].label}</span></td>
+      <td><span class="badge ${STATUS_MAP[st].badge}">${STATUS_MAP[st].emoji} ${STATUS_MAP[st].label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTrend(dates, opts={}, mode='day'){
+  const D=['จ','อ','พ','พฤ','ศ','ส','อา'];
+  let labels;
+  if(mode==='month'||dates.length>7){
+    labels=dates.map(d=>new Date(d).getDate()+'');
+  } else {
+    labels=dates.map(d=>{const day=new Date(d).getDay();return D[day===0?6:day-1];});
+  }
+  // thin out labels if too many
+  const maxTicks=31;
+  const step=dates.length>maxTicks?Math.ceil(dates.length/maxTicks):1;
+  const tickLabels=labels.map((l,i)=>i%step===0?l:'');
+
+  const shiftColors={Day:'#0891b2',A:'#2563eb',B:'#059669',C:'#d97706'};
+  const datasets=[
+    {label:'รวม',data:dates.map(d=>getDayStats(d,opts).rate),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.07)',borderWidth:2.5,pointRadius:dates.length>15?0:4,tension:.35,fill:true},
+    ...ALL_SHIFTS.map(s=>({label:SHIFT_INFO[s].label,data:dates.map(d=>getDayStats(d,{...opts,shift:s}).rate),borderColor:shiftColors[s],borderDash:[5,3],borderWidth:1.5,pointRadius:0,tension:.35}))
+  ];
+  if(trendChartObj)trendChartObj.destroy();
+  trendChartObj=new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{labels:tickLabels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(26,36,64,0.05)'},ticks:{color:'#8898b8',font:{size:11},callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#8898b8',font:{size:10},maxRotation:0}}},plugins:{legend:{labels:{color:'#4a5980',boxWidth:12,font:{size:11}}}}}
+  });
+}
+function switchTrend(range,btn){
+  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  const opts={factory:document.getElementById('db-factory').value,workcell:document.getElementById('db-wc').value,shift:document.getElementById('db-shift').value};
+  const dates=range==='week'?weekDates():monthDates();
+  renderTrend(dates,opts,range);
+}
+
+// ══════════════════════════════════════════════
+//  ATTENDANCE
+// ══════════════════════════════════════════════
+function renderAttPage(){
+  const dp=document.getElementById('attDate');if(!dp.value)dp.value=today();
+  document.getElementById('attInfo').textContent='วันที่ '+fmtTH(dp.value);
+  renderAttGrid();
+}
+function renderAttGrid(){
+  const date=document.getElementById('attDate').value||today();
+  const fac=document.getElementById('att-factory').value;
+  const wc=document.getElementById('att-wc').value;
+  if(!attendanceData[date])attendanceData[date]={};
+  const emps=filteredEmps({factory:fac,workcell:wc,shift:currentShift});
+  document.getElementById('attGrid').innerHTML=emps.length===0
+    ?`<div class="empty-state"><div class="icon">👥</div><p>ไม่พบพนักงานตามเงื่อนไข</p></div>`
+    :emps.map(e=>{
+      const s=attendanceData[date][e.id]||'present';
+      const ci=e.id%AV_COLORS.length;
+      return`<div class="att-card">
+        <div class="emp-avatar" style="background:${AV_COLORS[ci]}18;color:${AV_COLORS[ci]};">${e.firstName[0]}</div>
+        <div class="emp-info">
+          <div class="emp-name">${e.firstName} ${e.lastName}</div>
+          <div class="emp-meta">
+            <span><span style="font-family:'IBM Plex Mono';font-size:10px;">${e.code}</span></span>
+            <span>📍 <span class="wc-badge" style="font-size:10px;">${e.workcell||'–'}</span></span>
+            <span style="color:var(--text3);">${e.process||''}</span>
+          </div>
+        </div>
+        <select class="att-select s-${s}" id="sel-${e.id}" onchange="onSelChange(${e.id},'${date}',this)">
+          <option value="present" ${s==='present'?'selected':''}>✅ มาทำงาน</option>
+          <option value="late"    ${s==='late'?'selected':''}>⏰ มาสาย</option>
+          <option value="absent"  ${s==='absent'?'selected':''}>❌ ขาดงาน</option>
+          <option value="leave"    ${s==='leave'?'selected':''}>📋 ลาพักร้อน</option>
+          <option value="business" ${s==='business'?'selected':''}>🏢 ลากิจ</option>
+          <option value="sick"    ${s==='sick'?'selected':''}>🤒 ลาป่วย</option>
+        </select>
+      </div>`;
+    }).join('');
+  // pending badge
+  const todayEmps=filteredEmps({}).filter(e=>!attendanceData[today()]||attendanceData[today()][e.id]==null);
+  document.getElementById('pendingBadge').textContent=todayEmps.length;
+}
+function onSelChange(empId,date,sel){
+  if(!attendanceData[date])attendanceData[date]={};
+  attendanceData[date][empId]=sel.value;
+  sel.className='att-select s-'+sel.value;
+}
+function selectShift(sh,btn){
+  currentShift=sh;
+  document.querySelectorAll('.shift-tab').forEach(t=>{t.className='shift-tab';});
+  btn.classList.add('t-'+sh.toLowerCase());
+  renderAttGrid();
+}
+function bulkSet(status){
+  const date=document.getElementById('attDate').value||today();
+  const fac=document.getElementById('att-factory').value;
+  const wc=document.getElementById('att-wc').value;
+  if(!attendanceData[date])attendanceData[date]={};
+  filteredEmps({factory:fac,workcell:wc,shift:currentShift}).forEach(e=>{
+    attendanceData[date][e.id]=status;
+    const sel=document.getElementById(`sel-${e.id}`);
+    if(sel){sel.value=status;sel.className='att-select s-'+status;}
+  });
+  showToast(`✅ ตั้งสถานะกะ ${currentShift}: "${STATUS_MAP[status].label}" ทุกคน`);
+}
+async function saveAll(){
+  const date=document.getElementById('attDate').value||today();
+  const fac=document.getElementById('att-factory').value;
+  const wc=document.getElementById('att-wc').value;
+  if(!attendanceData[date])attendanceData[date]={};
+  const emps=filteredEmps({factory:fac,workcell:wc,shift:currentShift});
+  showToast('⏳ กำลังบันทึกลง Google Sheets...');
+  for(const e of emps){
+    const sel=document.getElementById(`sel-${e.id}`);
+    if(sel){
+      attendanceData[date][e.id]=sel.value;
+      await saveAttendanceToSheet(date, e.id, sel.value);
+    }
+  }
+  showToast(`✅ บันทึกกะ ${currentShift} ลง Google Sheets สำเร็จ`);
+}
+
+// ══════════════════════════════════════════════
+//  EMPLOYEES
+// ══════════════════════════════════════════════
+function renderEmpTable(){
+  populateWcSelects();
+  const q=document.getElementById('empSearch').value.toLowerCase();
+  const fac=document.getElementById('empFactFilter').value;
+  const sh=document.getElementById('empShiftFilter').value;
+  const wc=document.getElementById('empWcFilter').value;
+  const emps=employees.filter(e=>{
+    const m=`${e.code} ${e.firstName} ${e.lastName} ${e.workcell||''} ${e.process||''}`.toLowerCase().includes(q);
+    return m&&(fac?e.factory===fac:true)&&(sh?e.shift===sh:true)&&(wc?e.workcell===wc:true);
+  });
+  document.getElementById('empCount').textContent=emps.length;
+  const dates=monthDates();
+  document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
+    const p=dates.filter(d=>['present','late'].includes(getStatus(d,e.id))).length;
+    const r=Math.round(p/dates.length*100);
+    return`<tr>
+      <td style="color:var(--text3);">${i+1}</td>
+      <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
+      <td style="font-weight:700;">${e.firstName} ${e.lastName}</td>
+      <td style="color:var(--text3);">${e.position||'–'}</td>
+      <td>${FACTORY_NAMES[e.factory]||e.factory}</td>
+      <td><span class="wc-badge">${e.workcell||'–'}</span> <span style="font-size:11px;color:var(--text3);">${e.process||''}</span></td>
+      <td><span class="badge badge-${e.shift.toLowerCase()}">${SHIFT_INFO[e.shift].label}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-weight:700;min-width:34px;color:${r>=90?'var(--green)':r>=75?'var(--yellow)':'var(--red)'}">${r}%</span>
+          <div style="flex:1;min-width:50px;"><div class="progress-bar"><div class="progress-fill" style="width:${r}%;background:${r>=90?'var(--green)':r>=75?'var(--yellow)':'var(--red)'};"></div></div></div>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost btn-xs" onclick="editEmp(${e.id})">✏️ แก้ไข</button>
+          <button class="btn btn-ghost btn-xs" onclick="toggleActive(${e.id})" style="color:${e.active===false?'var(--green)':'var(--text3)'};">${e.active===false?'✅ เปิด':'⏸ ระงับ'}</button>
+          <button class="btn btn-danger btn-xs" onclick="delEmp(${e.id})">🗑️ ลบ</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3);">ไม่พบพนักงาน</td></tr>`;
+}
+
+function openAddEmp(){
+  document.getElementById('empModalTitle').textContent='เพิ่มพนักงานใหม่';
+  document.getElementById('eEditId').value='';
+  document.getElementById('eCode').value='EMP'+String(nextId).padStart(3,'0');
+  ['eFullName','ePos','eWc','eProcess'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('eShift').value='Day';
+  const defaultFactory=(currentUser&&currentUser.factory)?currentUser.factory:'AVP1';
+  const factoryEl=document.getElementById('eFactory');
+  factoryEl.value=defaultFactory;
+  // force browser to register selected option
+  for(let i=0;i<factoryEl.options.length;i++){
+    factoryEl.options[i].selected=(factoryEl.options[i].value===defaultFactory);
+  }
+  document.getElementById('empModal').classList.add('open');
+}
+function editEmp(id){
+  const e=employees.find(x=>x.id===id);if(!e)return;
+  document.getElementById('empModalTitle').textContent='แก้ไขข้อมูลพนักงาน';
+  document.getElementById('eEditId').value=id;
+  document.getElementById('eCode').value=e.code;
+  document.getElementById('eFullName').value=(e.firstName+' '+e.lastName).trim();
+  document.getElementById('ePos').value=e.position||'';
+  document.getElementById('eShift').value=e.shift;
+  const factoryEl=document.getElementById('eFactory');
+  const fval=e.factory||'AVP1';
+  for(let i=0;i<factoryEl.options.length;i++){
+    factoryEl.options[i].selected=(factoryEl.options[i].value===fval);
+  }
+  document.getElementById('eWc').value=e.workcell||'';
+  document.getElementById('eProcess').value=e.process||'';
+  document.getElementById('empModal').classList.add('open');
+}
+async function saveEmployee(){
+  const eid=document.getElementById('eEditId').value;
+  const o={code:document.getElementById('eCode').value.trim(),firstName:(()=>{const p=document.getElementById('eFullName').value.trim().split(/\s+/);return p[0]||'';})(),lastName:(()=>{const p=document.getElementById('eFullName').value.trim().split(/\s+/);return p.slice(1).join(' ')||'';})(),position:document.getElementById('ePos').value.trim(),shift:document.getElementById('eShift').value,factory:document.getElementById('eFactory').value,workcell:document.getElementById('eWc').value.trim(),process:document.getElementById('eProcess').value.trim()};
+  if(!o.code||!o.firstName){showToast('❌ กรุณากรอกข้อมูลที่จำเป็น');return;}
+  showToast('⏳ กำลัง sync Google Sheets...');
+  if(eid){
+    const e=employees.find(x=>x.id===+eid);
+    if(e){Object.assign(e,o);await saveEmployeeToSheet(e,false);}
+    showToast('✅ แก้ไขและ sync สำเร็จ');
+  } else {
+    const newEmp={id:nextId++,...o};
+    employees.push(newEmp);
+    await saveEmployeeToSheet(newEmp,true);
+    showToast('✅ เพิ่มพนักงานและ sync สำเร็จ');
+  }
+  closeModal('empModal');renderEmpTable();populateWcSelects();
+}
+function toggleActive(id){
+  const e=employees.find(x=>x.id===id);if(!e)return;
+  e.active=(e.active===false)?true:false;
+  renderEmpTable();
+  showToast(e.active===false?'⏸ ระงับพนักงานแล้ว':'✅ เปิดใช้งานพนักงานแล้ว');
+}
+function delEmp(id){
+  const e=employees.find(x=>x.id===id);if(!e)return;
+  if(!confirm(`ยืนยันการลบ "${e.firstName} ${e.lastName}" (${e.code})\n\nข้อมูลจะถูกลบถาวร ไม่สามารถกู้คืนได้`))return;
+  employees=employees.filter(x=>x.id!==id);
+  renderEmpTable();
+  showToast(`🗑️ ลบ ${e.firstName} ${e.lastName} สำเร็จ`);
+}
+
+// ══════════════════════════════════════════════
+//  EXCEL IMPORT
+// ══════════════════════════════════════════════
+function handleFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(data.length<2){showToast('❌ ไฟล์ว่างหรือรูปแบบไม่ถูกต้อง');return;}
+    xlHeaders=data[0].map(String);
+    xlData=data.slice(1).filter(r=>r.some(c=>c!==''));
+    document.getElementById('xlRowCount').textContent=xlData.length;
+    document.getElementById('xlColCount').textContent=xlHeaders.length;
+    buildColMapper();
+    buildPreviewTable();
+    goStep2();
+  };
+  reader.readAsArrayBuffer(file);
+}
+function onDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+function buildColMapper(){
+  document.getElementById('colMapRows').innerHTML=SYSTEM_FIELDS.map(f=>`
+    <div class="col-map-row">
+      <div class="col-field">${f.label}${f.required?'<span style="color:var(--red);"> *</span>':''}</div>
+      <div class="col-arrow">→</div>
+      <select class="col-select" id="map-${f.key}">
+        <option value="">-- ไม่เลือก --</option>
+        ${xlHeaders.map((h,i)=>`<option value="${i}" ${h.toLowerCase().includes(f.key.toLowerCase())||h.toLowerCase().includes(f.label.toLowerCase())?'selected':''}>${h}</option>`).join('')}
+      </select>
+    </div>`).join('');
+}
+function buildPreviewTable(){
+  const rows=xlData.slice(0,5);
+  document.getElementById('previewTable').innerHTML=`<table><thead><tr>${xlHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${xlHeaders.map((_,i)=>`<td>${r[i]??''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function getMapping(){
+  const m={};
+  SYSTEM_FIELDS.forEach(f=>{
+    const sel=document.getElementById('map-'+f.key);
+    if(sel&&sel.value!=='')m[f.key]=+sel.value;
+  });
+  return m;
+}
+function goStep2(){setStep(2);}
+function goStep3(){
+  const m=getMapping();
+  const required=SYSTEM_FIELDS.filter(f=>f.required);
+  for(const f of required){if(m[f.key]==null){showToast(`❌ กรุณาเลือก column สำหรับ "${f.label}"`);return;}}
+  mappedImportData=xlData.map(row=>{
+    const o={};
+    SYSTEM_FIELDS.forEach(f=>{if(m[f.key]!=null)o[f.key]=String(row[m[f.key]]??'').trim();});
+    // split fullName → firstName + lastName
+    const parts=(o.fullName||'').trim().split(/\s+/);
+    o.firstName = parts[0]||'';
+    o.lastName  = parts.slice(1).join(' ')||'';
+    return o;
+  }).filter(o=>o.code&&o.firstName);
+  document.getElementById('importCount').textContent=mappedImportData.length;
+  document.getElementById('importSummary').textContent=`พบข้อมูลที่ถูกต้อง ${mappedImportData.length} รายการ`;
+  document.getElementById('importPreviewTable').innerHTML=`<table>
+    <thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>โรงงาน</th><th>กะ</th><th>Workcell</th><th>กระบวนการ</th></tr></thead>
+    <tbody>${mappedImportData.slice(0,20).map(o=>`<tr>
+      <td style="font-family:'IBM Plex Mono';font-size:12px;">${o.code}</td>
+      <td>${o.firstName} ${o.lastName}</td>
+      <td>${o.position||'–'}</td>
+      <td>${FACTORY_NAMES[o.factory]||o.factory||'AVP1'}</td>
+      <td>${o.shift||'Day'}</td>
+      <td><span class="wc-badge">${o.workcell||'–'}</span></td>
+      <td>${o.process||'–'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  setStep(3);
+}
+function confirmImport(){
+  let added=0,updated=0;
+  const VALID_FACTORIES=Object.keys(FACTORY_NAMES);
+  const VALID_SHIFTS=['Day','A','B','C'];
+  const newRows=[];
+
+  mappedImportData.forEach(o=>{
+    const existing=employees.find(e=>e.code===o.code);
+    const factoryRaw=String(o.factory||'AVP1').trim();
+    const FMAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'};
+    const factory=FMAP[factoryRaw]||(VALID_FACTORIES.includes(factoryRaw)?factoryRaw:'AVP1');
+    const shiftRaw=String(o.shift||'Day').trim().toUpperCase();
+    const shift=VALID_SHIFTS.includes(shiftRaw)?shiftRaw:VALID_SHIFTS.includes(o.shift)?o.shift:'Day';
+    const empObj={
+      code:o.code, firstName:o.firstName||'', lastName:o.lastName||'',
+      position:o.position||'พนักงานผลิต', shift, factory,
+      workcell:o.workcell||'', process:o.process||''
+    };
+    if(existing){Object.assign(existing,empObj);updated++;}
+    else{
+      const newEmp={id:nextId++,...empObj};
+      employees.push(newEmp);
+      newRows.push([newEmp.id,newEmp.code,newEmp.firstName,newEmp.lastName,
+        newEmp.position,newEmp.factory,newEmp.shift,newEmp.workcell,newEmp.process,'true']);
+      added++;
+    }
+  });
+
+  // sync ใหม่ทั้งหมดไป Sheet ในครั้งเดียว
+  if(newRows.length>0){
+    gsScript({action:'batchAppend', tab:'Employees', values:newRows})
+      .then(r=>{ if(r.ok) showToast(`✅ sync ${newRows.length} รายการไป Google Sheet แล้ว`);
+                 else showToast('⚠️ บันทึกในระบบแล้ว แต่ sync Sheet ไม่สำเร็จ'); })
+      .catch(()=>showToast('⚠️ บันทึกในระบบแล้ว แต่ sync Sheet ไม่สำเร็จ'));
+  }
+
+  showToast(`✅ นำเข้าสำเร็จ: เพิ่ม ${added} · อัปเดต ${updated} รายการ`);
+  initData();populateWcSelects();resetImport();showPage('employees');
+}
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById('step'+i).className='import-step'+(i<n?' done':i===n?' active':'');
+    document.getElementById('importStep'+i).style.display=i===n?'block':'none';
+  });
+}
+function resetImport(){xlData=[];xlHeaders=[];mappedImportData=[];document.getElementById('xlFile').value='';setStep(1);}
+
+function downloadTemplate(){
+  const ws=XLSX.utils.aoa_to_sheet([
+    ['รหัสพนักงาน','ชื่อ-นามสกุล','ตำแหน่ง','โรงงาน','กะ','Workcell','กระบวนการ'],
+    ['EMP001','สมชาย ใจดี','พนักงานผลิต','AVP1','Day','WC-01','Stamping'],
+    ['EMP002','สมหญิง รักงาน','เทคนิเชียน','AVP2','A','WC-02','Welding'],
+    ['EMP003','วิชัย มานะ','พนักงานผลิต','Mold','B','WC-01','Molding'],
+  ]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Employees');
+  XLSX.writeFile(wb,'WorkTrack_Template.xlsx');
+  showToast('⬇️ ดาวน์โหลด Template สำเร็จ');
+}
+
+// ══════════════════════════════════════════════
+//  REPORT
+// ══════════════════════════════════════════════
+function renderReport(){
+  const fac=document.getElementById('rpt-factory').value;
+  const wc=document.getElementById('rpt-wc').value;
+  const sh=document.getElementById('rpt-shift').value;
+  const range=document.getElementById('rpt-range').value;
+  const opts={factory:fac,workcell:wc,shift:sh};
+  const dates=range==='week'?weekDates():monthDates();
+  const emps=filteredEmps(opts);
+  let tot={present:0,absent:0,late:0,leave:0,sick:0,total:0};
+  dates.forEach(d=>{const s=getDayStats(d,opts);Object.keys(tot).forEach(k=>tot[k]+=(s[k]||0));});
+  const rate=tot.total?Math.round((tot.present+tot.late)/tot.total*100):0;
+  document.getElementById('rptStats').innerHTML=`
+    <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-label">พนักงาน</div><div class="stat-value">${emps.length}</div><div class="stat-sub">คน</div></div>
+    <div class="stat-card green"><div class="stat-icon">📈</div><div class="stat-label">อัตราเฉลี่ย</div><div class="stat-value">${rate}%</div><div class="stat-sub">การมาทำงาน</div></div>
+    <div class="stat-card red"><div class="stat-icon">❌</div><div class="stat-label">ขาดงานรวม</div><div class="stat-value">${tot.absent}</div><div class="stat-sub">ครั้ง</div></div>
+    <div class="stat-card yellow"><div class="stat-icon">⏰</div><div class="stat-label">มาสายรวม</div><div class="stat-value">${tot.late}</div><div class="stat-sub">ครั้ง</div></div>
+    <div class="stat-card purple"><div class="stat-icon">📋</div><div class="stat-label">ลางานรวม</div><div class="stat-value">${tot.leave+tot.sick+(tot.business||0)}</div><div class="stat-sub">ครั้ง</div></div>
+  `;
+  // Line
+  const D=['จ','อ','พ','พฤ','ศ','ส','อา'];
+  const labels=range==='week'?dates.map((_,i)=>D[i]):dates.map(d=>new Date(d).getDate()+'');
+  if(rptLineObj)rptLineObj.destroy();
+  rptLineObj=new Chart(document.getElementById('rptLine'),{type:'line',data:{labels,datasets:[{label:'%เข้างาน',data:dates.map(d=>getDayStats(d,opts).rate),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',borderWidth:2.5,pointRadius:4,tension:.35,fill:true}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:50,max:100,grid:{color:'rgba(26,36,64,0.05)'},ticks:{color:'#8898b8',font:{size:11},callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#8898b8',font:{size:11}}}},plugins:{legend:{labels:{color:'#4a5980',font:{size:11}}}}}});
+  // Donut
+  const sl=['มาทำงาน','มาสาย','ขาดงาน','ลาพักร้อน','ลาป่วย','ลากิจ'];
+  const sd=[tot.present,tot.late,tot.absent,tot.leave,tot.sick,tot.business||0];
+  if(rptDonutObj)rptDonutObj.destroy();
+  rptDonutObj=new Chart(document.getElementById('rptDonut'),{type:'doughnut',data:{labels:sl,datasets:[{data:sd,backgroundColor:COLORS_BG,borderColor:COLORS_BD,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#4a5980',boxWidth:10,font:{size:11}}}}}});
+  // Bar (factory comparison)
+  const facs=Object.keys(FACTORY_NAMES);
+  const latestDate=dates[dates.length-1];
+  if(rptBarObj)rptBarObj.destroy();
+  rptBarObj=new Chart(document.getElementById('rptBar'),{type:'bar',data:{labels:facs.map(k=>FACTORY_NAMES[k]),datasets:[{label:'อัตราเข้างาน %',data:facs.map(f=>getDayStats(latestDate,{factory:f}).rate),backgroundColor:['rgba(37,99,235,.6)','rgba(5,150,105,.6)','rgba(217,119,6,.6)'],borderColor:['#2563eb','#059669','#d97706'],borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:50,max:100,grid:{color:'rgba(26,36,64,0.05)'},ticks:{color:'#8898b8',font:{size:11},callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#8898b8',font:{size:11}}}},plugins:{legend:{labels:{color:'#4a5980',font:{size:11}}}}}});
+  // Table
+  document.getElementById('rptTable').innerHTML=emps.map(e=>{
+    let p=0,a=0,l=0,lv=0,sk=0,bz=0;
+    dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
+    const r=dates.length?Math.round((p+l)/dates.length*100):0;
+    return`<tr>
+      <td style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</td>
+      <td style="font-weight:700;">${e.firstName} ${e.lastName}</td>
+      <td>${FACTORY_NAMES[e.factory]||e.factory}</td>
+      <td><span class="wc-badge">${e.workcell||'–'}</span></td>
+      <td><span class="badge badge-${e.shift.toLowerCase()}">${SHIFT_INFO[e.shift].label}</span></td>
+      <td style="color:var(--green);font-weight:700;">${p}</td>
+      <td style="color:var(--red);font-weight:700;">${a}</td>
+      <td style="color:var(--yellow);font-weight:700;">${l}</td>
+      <td style="color:var(--purple);">${lv}</td>
+      <td style="color:#0891b2;">${bz}</td>
+      <td style="color:var(--orange);">${sk}</td>
+      <td><span style="font-weight:800;color:${r>=90?'var(--green)':r>=75?'var(--yellow)':'var(--red)'}">${r}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  GOOGLE SHEETS CONFIG — via Apps Script Web App
+// ══════════════════════════════════════════════
+const GS = {
+  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwph2EshJusTAWbNl4w8dmi6pucaN_vDclSTDD9GRnPupZo0Ps0sNqNUFKlHFI79vJa/exec',
+  API_KEY: 'AIzaSyD0zBDl5Qow0Kg0woKHI3OQly97l5M7XOg',
+  SHEET_ID: '1f2wKy1uTHEo1t1lY36vSU5mfhRUK9nsXPD8icE7FZ64',
+  BASE: 'https://sheets.googleapis.com/v4/spreadsheets',
+};
+
+// ── READ via Sheets API (public read) ──
+async function gsRead(range){
+  const url=`${GS.BASE}/${GS.SHEET_ID}/values/${encodeURIComponent(range)}?key=${GS.API_KEY}`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Sheets read error: '+r.status);
+  const d=await r.json();
+  return d.values||[];
+}
+
+// ── WRITE via Apps Script Web App ──
+async function gsAppend(tab, values){
+  return gsScript({action:'append', tab, values});
+}
+async function gsUpdate(tab, rowNum, values){
+  return gsScript({action:'update', tab, rowNum, values});
+}
+async function gsClear(tab, range){
+  return gsScript({action:'clear', tab, range});
+}
+async function gsScript(body){
+  try{
+    const r=await fetch(GS.SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'}, // avoid CORS preflight
+      body:JSON.stringify(body)
+    });
+    const text=await r.text();
+    try{return JSON.parse(text);}catch{return {ok:true};}
+  }catch(err){
+    console.warn('Apps Script write error:',err);
+    return {error:err.message};
+  }
+}
+
+// Parse rows → objects using header row
+function parseRows(rows){
+  if(!rows||rows.length<2) return [];
+  const headers=rows[0];
+  return rows.slice(1).filter(r=>r.some(c=>c!=null&&c!=='')).map((r,i)=>{
+    const obj={_row:i+2};
+    headers.forEach((h,j)=>obj[h]=r[j]||'');
+    return obj;
+  });
+}
+
+// ── READ via Google Sheets API (public sheet) ──
+async function gsReadAPI(range){
+  try{
+    const url=`${GS.BASE}/${GS.SHEET_ID}/values/${encodeURIComponent(range)}?key=${GS.API_KEY}`;
+    const r=await fetch(url);
+    if(!r.ok) throw new Error('API error: '+r.status);
+    const d=await r.json();
+    return d.values||[];
+  }catch(err){
+    console.warn('gsReadAPI failed:', err);
+    return [];
+  }
+}
+
+// ── Load users from Sheets (via Sheets API) ──
+async function loadUsersFromSheet(){
+  try{
+    const rows=await gsReadAPI('Users!A:G');
+    const data=parseRows(rows);
+    if(data.length>0){
+      const sheetUsers=data
+        .filter(u=>String(u.active).toUpperCase()!=='FALSE'&&String(u.username||'').trim())
+        .map(u=>({
+          username: String(u.username).trim(),
+          password: String(u.password).trim(),
+          name:     String(u.name||u.username).trim(),
+          role:     String(u.role||'viewer').toLowerCase().trim(),
+          factory:  String(u.factory||'').trim()||null,
+          roleLabel:capitalize(String(u.role||'viewer').toLowerCase().trim()),
+        }));
+      if(sheetUsers.length>0){
+        USERS.splice(0,USERS.length,...sheetUsers);
+        return true;
+      }
+    }
+    return false;
+  }catch(err){
+    console.warn('Sheet users load failed:', err);
+    return false;
+  }
+}
+
+// ── Load employees from Sheets (via Sheets API) ──
+async function loadEmployeesFromSheet(){
+  try{
+    const rows=await gsReadAPI('Employees!A:J');
+    const data=parseRows(rows);
+    if(data.length===0) return false;
+    const FACTORY_MAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'}; // รองรับค่าเก่า
+    const loaded=data
+      .filter(e=>String(e.active||'true').toLowerCase()!=='false'&&e.code)
+      .map((e,i)=>{
+        const rawFactory=e.factory||'AVP1';
+        const factory=FACTORY_MAP[rawFactory]||rawFactory||'AVP1';
+        const rawShift=String(e.shift||'Day').trim();
+        const shift=['Day','A','B','C'].includes(rawShift)?rawShift:'Day';
+        return {
+          id:       parseInt(e.id)||i+1,
+          code:     e.code||'',
+          firstName:e.firstName||'',
+          lastName: e.lastName||'',
+          position: e.position||'พนักงานผลิต',
+          factory,
+          shift,
+          workcell: e.workcell||'',
+          process:  e.process||'',
+          active:   String(e.active||'true').toLowerCase()!=='false',
+          _row:     e._row,
+        };
+      });
+    if(loaded.length===0) return false;
+    employees=loaded;
+    nextId=Math.max(...employees.map(e=>e.id))+1;
+    populateWcSelects();
+    return true;
+  }catch(err){
+    console.warn('Sheet employees load failed:', err);
+    return false;
+  }
+}
+
+// ── Load attendance from Sheets (via Sheets API) ──
+async function loadAttendanceFromSheet(dateFrom, dateTo){
+  try{
+    const rows=await gsReadAPI('Attendance!A:J');
+    const data=parseRows(rows);
+    const filtered=dateFrom?data.filter(r=>r.date>=dateFrom&&(!dateTo||r.date<=dateTo)):data;
+    filtered.forEach(r=>{
+      if(!r.date||!r.empId) return;
+      if(!attendanceData[r.date]) attendanceData[r.date]={};
+      attendanceData[r.date][parseInt(r.empId)]=r.status||'present';
+    });
+    return true;
+  }catch(err){
+    console.warn('Sheet attendance load failed:', err);
+    return false;
+  }
+}
+
+function capitalize(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+
+// ── Save attendance to Sheets ──
+async function saveAttendanceToSheet(date, empId, status){
+  const emp=employees.find(e=>e.id===empId);
+  if(!emp) return;
+  try{
+    const rows=await gsReadAPI('Attendance!A:J');
+    const data=parseRows(rows);
+    const existing=data.find(r=>r.date===date&&String(r.empId)===String(empId));
+    const rowData=[
+      existing?existing.id:Date.now()+'_'+empId,
+      date, empId, emp.code,
+      emp.shift, status,
+      currentUser?currentUser.name:'–',
+      new Date().toISOString(),
+      emp.factory, emp.workcell
+    ];
+    if(existing){
+      await gsUpdate('Attendance', existing._row, rowData);
+    } else {
+      await gsAppend('Attendance', [rowData]);
+    }
+  }catch(err){
+    console.warn('Save attendance to sheet failed:', err);
+  }
+}
+
+// ── Save employee to Sheets ──
+async function saveEmployeeToSheet(emp, isNew){
+  const rowData=[
+    emp.id, emp.code, emp.firstName, emp.lastName,
+    emp.position, emp.factory, emp.shift,
+    emp.workcell, emp.process, 'true'
+  ];
+  try{
+    if(isNew){
+      await gsAppend('Employees', [rowData]);
+    } else if(emp._row){
+      await gsUpdate('Employees', emp._row, rowData);
+    }
+  }catch(err){
+    console.warn('Save employee to sheet failed:', err);
+  }
+}
+
+// ── Initialize sheet headers if empty ──
+async function ensureSheetHeaders(){
+  try{
+    const empRows=await gsReadAPI('Employees!A1:A1');
+    if(!empRows||!empRows[0]||!empRows[0][0]){
+      await gsScript({action:'append',tab:'Employees',values:[['id','code','firstName','lastName','position','factory','shift','workcell','process','active']]});
+    }
+    const attRows=await gsReadAPI('Attendance!A1:A1');
+    if(!attRows||!attRows[0]||!attRows[0][0]){
+      await gsScript({action:'append',tab:'Attendance',values:[['id','date','empId','empCode','shift','status','recordedBy','timestamp','factory','workcell']]});
+    }
+    const usrRows=await gsReadAPI('Users!A1:A1');
+    if(!usrRows||!usrRows[0]||!usrRows[0][0]){
+      await gsScript({action:'batchAppend',tab:'Users',values:[
+        ['id','username','password','name','role','factory','active'],
+        [1,'admin','admin123','ผู้ดูแลระบบ','admin','','true'],
+        [2,'manager1','pass1234','ผู้จัดการ','manager','','true'],
+        [3,'sup_avp1','sup1234','หัวหน้า AVP1','supervisor','AVP1','true'],
+        [4,'viewer','view1234','เจ้าหน้าที่ HR','viewer','','true'],
+      ]});
+    }
+  }catch(err){
+    console.warn('ensureSheetHeaders failed:', err);
+  }
+}
+const USERS = [
+  {username:'admin',   password:'admin123', name:'ผู้ดูแลระบบ',   role:'admin',      factory:null,    roleLabel:'Admin'},
+  {username:'manager1',password:'pass1234', name:'ผู้จัดการ',      role:'manager',    factory:null,    roleLabel:'Manager'},
+  {username:'sup_avp1',password:'sup1234',  name:'หัวหน้า AVP1',   role:'supervisor', factory:'AVP1',  roleLabel:'Supervisor'},
+  {username:'sup_avp2',password:'sup2234',  name:'หัวหน้า AVP2',   role:'supervisor', factory:'AVP2',  roleLabel:'Supervisor'},
+  {username:'viewer',  password:'view1234', name:'เจ้าหน้าที่ HR', role:'viewer',     factory:null,    roleLabel:'Viewer'},
+];
+// Role permissions:
+// admin      → ทุกอย่าง
+// manager    → ดู+แก้ไขทุกโรงงาน  ห้าม users page
+// supervisor → บันทึก+ดูได้เฉพาะโรงงานตัวเอง  ห้าม employees/users
+// viewer     → ดูรายงานได้อย่างเดียว
+const ROLE_PAGES = {
+  admin:      ['dashboard','attendance','employees','import','report'],
+  manager:    ['dashboard','attendance','employees','import','report'],
+  supervisor: ['dashboard','attendance','report'],
+  viewer:     ['dashboard','report'],
+};
+const ROLE_CAN_EDIT = {admin:true,manager:true,supervisor:true,viewer:false};
+const ROLE_COLORS = {
+  admin:     {bg:'rgba(220,38,38,.1)',color:'var(--red)'},
+  manager:   {bg:'rgba(37,99,235,.1)',color:'var(--accent)'},
+  supervisor:{bg:'rgba(5,150,105,.1)',color:'var(--green)'},
+  viewer:    {bg:'rgba(124,58,237,.1)',color:'var(--purple)'},
+};
+
+let currentUser = null;
+
+function fillLogin(u,p){
+  document.getElementById('loginUser').value=u;
+  document.getElementById('loginPass').value=p;
+}
+
+// Default users — ใช้เสมอเมื่อ Sheet โหลดไม่ได้
+const DEFAULT_USERS = [
+  {username:'admin',   password:'admin123', name:'ผู้ดูแลระบบ',   role:'admin',      factory:null,  roleLabel:'Admin'},
+  {username:'manager1',password:'pass1234', name:'ผู้จัดการ',      role:'manager',    factory:null,  roleLabel:'Manager'},
+  {username:'sup_avp1',password:'sup1234',  name:'หัวหน้า AVP1',   role:'supervisor', factory:'AVP1',roleLabel:'Supervisor'},
+  {username:'viewer',  password:'view1234', name:'เจ้าหน้าที่ HR', role:'viewer',     factory:null,  roleLabel:'Viewer'},
+];
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim();
+  const p=document.getElementById('loginPass').value;
+  const btn=document.querySelector('.login-btn');
+  btn.textContent='⏳ กำลังโหลด...';btn.disabled=true;
+  document.getElementById('loginError').style.display='none';
+
+  USERS.splice(0,USERS.length,...DEFAULT_USERS);
+  try{ await loadUsersFromSheet(); }catch(e){ console.warn('loadUsersFromSheet failed'); }
+
+  const user=USERS.find(x=>x.username.trim()===u && String(x.password).trim()===p);
+  if(!user){
+    document.getElementById('loginError').style.display='block';
+    document.getElementById('loginPass').value='';
+    btn.textContent='เข้าสู่ระบบ';btn.disabled=false;
+    return;
+  }
+  currentUser=user;
+  // บันทึก session ไว้ใน sessionStorage
+  try{ sessionStorage.setItem('wt_user', JSON.stringify(user)); }catch(e){}
+
+  btn.textContent='⏳ กำลังโหลดข้อมูล...';
+  try{
+    const empOk=await loadEmployeesFromSheet();
+    if(!empOk) await ensureSheetHeaders();
+    const now=new Date();
+    const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
+    await loadAttendanceFromSheet(from,null);
+  }catch(e){ console.warn('Data load error:', e); }
+  initData();
+
+  document.getElementById('loginScreen').classList.add('hidden');
+  btn.textContent='เข้าสู่ระบบ';btn.disabled=false;
+  applyRoleUI();
+  renderDashboard();
+  showToast(`👋 ยินดีต้อนรับ ${user.name}`);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!document.getElementById('loginScreen').classList.contains('hidden'))doLogin();});
+
+function doLogout(){
+  if(!confirm('ยืนยันออกจากระบบ?'))return;
+  currentUser=null;
+  try{ sessionStorage.removeItem('wt_user'); }catch(e){}
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginError').style.display='none';
+}
+
+// ── restore session on page load/refresh ──
+async function restoreSession(){
+  try{
+    const saved = sessionStorage.getItem('wt_user');
+    if(!saved) return false;
+    const user = JSON.parse(saved);
+    if(!user||!user.username) return false;
+    currentUser = user;
+    // โหลดข้อมูลพนักงานและการมาทำงาน
+    try{
+      USERS.splice(0,USERS.length,...DEFAULT_USERS);
+      await loadUsersFromSheet();
+      const empOk=await loadEmployeesFromSheet();
+      if(!empOk) await ensureSheetHeaders();
+      const now=new Date();
+      const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
+      await loadAttendanceFromSheet(from,null);
+    }catch(e){ console.warn('Session restore data error:', e); }
+    initData();
+    document.getElementById('loginScreen').classList.add('hidden');
+    applyRoleUI();
+    renderDashboard();
+    showToast(`👋 ยินดีต้อนรับกลับ ${user.name}`);
+    return true;
+  }catch(e){
+    console.warn('Session restore failed:', e);
+    return false;
+  }
+}
+
+function applyRoleUI(){
+  if(!currentUser)return;
+  const r=currentUser.role;
+  const rc=ROLE_COLORS[r];
+  // topbar chips
+  const chip=document.getElementById('topRoleChip');
+  chip.textContent=currentUser.roleLabel;
+  chip.style.background=rc.bg; chip.style.color=rc.color;
+  document.getElementById('topUserName').textContent=currentUser.name;
+  // lock factory selector for supervisors
+  if(currentUser.factory){
+    const fs=document.getElementById('factorySelect');
+    fs.value=currentUser.factory; fs.disabled=true;
+    onFactoryChange();
+  }
+  // hide/show nav items
+  const allowed=ROLE_PAGES[r];
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    const txt=n.textContent.trim();
+    const hidden = (!allowed.includes('employees')&&(txt.includes('รายชื่อ')||txt.includes('Excel'))) ||
+                   (!allowed.includes('attendance')&&txt.includes('บันทึก'));
+    n.style.display=hidden?'none':'';
+  });
+  // hide record button for viewer
+  const btn=document.getElementById('btnRecordToday');
+  if(btn)btn.style.display=r==='viewer'?'none':'';
+  // sidebar user area
+  document.querySelector('.user-info p').textContent=currentUser.name;
+  document.querySelector('.user-info span').textContent=currentUser.roleLabel+' · '+( currentUser.factory?FACTORY_NAMES[currentUser.factory]:'ทุกโรงงาน');
+  document.querySelector('.user-avatar').textContent=currentUser.name[0];
+}
+
+function canEdit(){return currentUser&&ROLE_CAN_EDIT[currentUser.role];}
+function checkAccess(pageId){
+  if(!currentUser)return false;
+  return ROLE_PAGES[currentUser.role].includes(pageId);
+}
+
+// Override showPage to check permissions
+const _origShowPage=showPage;
+// showPage is already defined below — wrap it via proxy after full init
+
+// ══════════════════════════════════════════════
+//  DOWNLOAD REPORT
+// ══════════════════════════════════════════════
+function toggleDlMenu(){
+  document.getElementById('dlMenu').classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#dlDropdown'))document.getElementById('dlMenu').classList.remove('open');
+});
+
+function getReportData(){
+  const fac=document.getElementById('rpt-factory').value;
+  const wc=document.getElementById('rpt-wc').value;
+  const sh=document.getElementById('rpt-shift').value;
+  const range=document.getElementById('rpt-range').value;
+  const dates=range==='week'?weekDates():monthDates();
+  const emps=filteredEmps({factory:fac,workcell:wc,shift:sh});
+  return {fac,wc,sh,range,dates,emps};
+}
+
+function downloadReport(type){
+  document.getElementById('dlMenu').classList.remove('open');
+  const {fac,wc,sh,dates,emps}=getReportData();
+  const rangeLabel=document.getElementById('rpt-range').value==='week'?'สัปดาห์นี้':'เดือนนี้';
+  const fname=`WorkTrack_Report_${today()}`;
+
+  if(type==='print'){
+    printReport();return;
+  }
+
+  if(type==='csv'){
+    const rows=[['รหัส','ชื่อ','นามสกุล','โรงงาน','Workcell','กระบวนการ','กะ','มาทำงาน','มาสาย','ขาดงาน','ลาพักร้อน','ลาป่วย','อัตราเข้างาน(%)']];
+    emps.forEach(e=>{
+      let p=0,a=0,l=0,lv=0,sk=0;
+      let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
+      const r=dates.length?Math.round((p+l)/dates.length*100):0;
+      rows.push([e.code,e.firstName,e.lastName,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',e.shift,p,l,a,lv,sk,r+'%']);
+    });
+    const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=fname+'.csv';a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ ดาวน์โหลด CSV สำเร็จ');
+    return;
+  }
+
+  if(type==='xlsx'){
+    const ws_data=[
+      [`รายงานการมาทำงาน – ${rangeLabel} (${fmtTH(dates[0])} ถึง ${fmtTH(dates[dates.length-1])})`],
+      [`โรงงาน: ${fac?FACTORY_NAMES[fac]:'ทั้งหมด'}  Workcell: ${wc||'ทั้งหมด'}  กะ: ${sh||'ทั้งหมด'}`],
+      [],
+      ['รหัสพนักงาน','ชื่อ-นามสกุล','โรงงาน','Workcell','กระบวนการ','กะ','มาทำงาน','มาสาย','ขาดงาน','ลาพักร้อน','ลาป่วย','รวมวันทำงาน','อัตราเข้างาน(%)'],
+    ];
+    emps.forEach(e=>{
+      let p=0,a=0,l=0,lv=0,sk=0;
+      let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
+      const r=dates.length?Math.round((p+l)/dates.length*100):0;
+      ws_data.push([e.code,`${e.firstName} ${e.lastName}`,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',`กะ ${e.shift}`,p,l,a,lv,sk,dates.length,r]);
+    });
+    // Summary row
+    ws_data.push([]);
+    let tp=0,ta=0,tl=0,tlv=0,tsk=0;
+    emps.forEach(e=>{dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')tp++;else if(s==='absent')ta++;else if(s==='late')tl++;else if(s==='leave')tlv++;else tsk++;});});
+    const tot=tp+ta+tl+tlv+tsk;
+    ws_data.push(['รวมทั้งหมด','','','','','',tp,tl,ta,tlv,tsk,tot,tot?Math.round((tp+tl)/tot*100):0]);
+
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols']=[{wch:14},{wch:22},{wch:14},{wch:10},{wch:12},{wch:8},{wch:8},{wch:8},{wch:8},{wch:10},{wch:8},{wch:12},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,'รายงานรายบุคคล');
+
+    // Sheet 2: daily summary
+    const ws2_data=[['วันที่','มาทำงาน','มาสาย','ขาดงาน','ลาพักร้อน','ลาป่วย','อัตราเข้างาน(%)']];
+    dates.forEach(d=>{
+      const s=getDayStats(d,{factory:fac,workcell:wc,shift:sh});
+      ws2_data.push([fmtTH(d),s.present,s.late,s.absent,s.leave,s.sick,s.rate]);
+    });
+    const ws2=XLSX.utils.aoa_to_sheet(ws2_data);
+    XLSX.utils.book_append_sheet(wb,ws2,'สรุปรายวัน');
+
+    XLSX.writeFile(wb,fname+'.xlsx');
+    showToast('✅ ดาวน์โหลด Excel สำเร็จ');
+  }
+
+  if(type==='summary'){
+    const ws_data=[['สรุปรายกะ – '+rangeLabel],[]];
+    ['A','B','C'].forEach(shift=>{
+      const sEmps=filteredEmps({factory:fac,workcell:wc,shift});
+      ws_data.push([`กะ ${shift} (${SHIFT_INFO[shift].time})`,`พนักงาน ${sEmps.length} คน`]);
+      ws_data.push(['วันที่','มาทำงาน','มาสาย','ขาดงาน','ลา','ป่วย','อัตรา(%)']);
+      dates.forEach(d=>{
+        const st=getDayStats(d,{factory:fac,workcell:wc,shift});
+        ws_data.push([fmtTH(d),st.present,st.late,st.absent,st.leave,st.sick,st.rate]);
+      });
+      ws_data.push([]);
+    });
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb,ws,'สรุปรายกะ');
+    XLSX.writeFile(wb,fname+'_Summary.xlsx');
+    showToast('✅ ดาวน์โหลด Excel สรุปรายกะสำเร็จ');
+  }
+}
+
+function printReport(){
+  const {fac,wc,sh,dates,emps}=getReportData();
+  const rangeLabel=document.getElementById('rpt-range').value==='week'?'สัปดาห์นี้':'เดือนนี้';
+  let rows='';
+  emps.forEach((e,i)=>{
+    let p=0,a=0,l=0,lv=0,sk=0;
+    let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
+    const r=dates.length?Math.round((p+l)/dates.length*100):0;
+    rows+=`<tr style="background:${i%2?'#f7f9fc':'#fff'}">
+      <td>${e.code}</td><td>${e.firstName} ${e.lastName}</td>
+      <td>${FACTORY_NAMES[e.factory]||e.factory}</td><td>${e.workcell||'–'}</td><td>กะ ${e.shift}</td>
+      <td style="color:green;font-weight:700;">${p}</td><td style="color:orange;font-weight:700;">${l}</td>
+      <td style="color:red;font-weight:700;">${a}</td><td>${lv}</td><td>${sk}</td>
+      <td style="font-weight:800;color:${r>=90?'green':r>=75?'orange':'red'}">${r}%</td>
+    </tr>`;
+  });
+  const win=window.open('','_blank','width=1100,height=800');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>รายงานการมาทำงาน</title>
+    <style>body{font-family:sans-serif;padding:24px;font-size:13px;}h2{font-size:18px;margin-bottom:4px;}p{color:#666;margin-bottom:16px;}table{width:100%;border-collapse:collapse;}th{background:#1e3a8a;color:#fff;padding:8px 10px;font-size:11px;text-align:left;}td{padding:7px 10px;border-bottom:1px solid #e2e8f0;}@media print{@page{size:A4 landscape;}}</style>
+    </head><body>
+    <h2>📊 รายงานการมาทำงาน – WorkTrack Pro</h2>
+    <p>ช่วงเวลา: ${rangeLabel} (${fmtTH(dates[0])} – ${fmtTH(dates[dates.length-1])}) &nbsp;|&nbsp; โรงงาน: ${fac?FACTORY_NAMES[fac]:'ทั้งหมด'} &nbsp;|&nbsp; พนักงาน: ${emps.length} คน</p>
+    <table><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>โรงงาน</th><th>Workcell</th><th>กะ</th><th>มา</th><th>สาย</th><th>ขาด</th><th>ลา</th><th>ป่วย</th><th>อัตรา</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <p style="margin-top:16px;color:#999;font-size:11px;">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+    <script>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  win.document.close();
+}
+
+// ── Init override: check login before render ──
+// ══════════════════════════════════════════════
+//  MODAL / TOAST
+// ══════════════════════════════════════════════
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+let toastT;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+Chart.defaults.font.family="'Sarabun', sans-serif";
+document.getElementById('db-date').value=today();
+document.getElementById('db-from').value=weekDates()[0];
+document.getElementById('db-to').value=today();
+document.getElementById('db-month').value=today().slice(0,7);
+document.getElementById('attDate').value=today();
+document.getElementById('topDate').textContent=fmtTH(today());
+initData();
+populateWcSelects();
+// พยายาม restore session ก่อน ถ้าไม่มีค่อยรอ Login
+restoreSession().then(ok=>{
+  if(!ok){
+    // ไม่มี session — แสดงหน้า Login
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
