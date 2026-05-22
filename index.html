@@ -1974,31 +1974,66 @@ async function loadEmployeesFromSheet(){
     const rows=await gsReadAPI('Employees!A:J');
     const data=parseRows(rows);
     if(data.length===0) return false;
-    const FACTORY_MAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'}; // รองรับค่าเก่า
+
+    const FACTORY_MAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'};
+    const VALID_FACTORIES=Object.keys(FACTORY_NAMES);
+    const VALID_SHIFTS=['Day','A','B','C'];
+
     const loaded=data
-      .filter(e=>String(e.active||'true').toLowerCase()!=='false'&&e.code)
+      .filter(e=>String(e.active||'true').toUpperCase()!=='FALSE'&&e.code)
       .map((e,i)=>{
-        const rawFactory=e.factory||'AVP1';
-        const factory=FACTORY_MAP[rawFactory]||rawFactory||'AVP1';
+        // ── ชื่อ-นามสกุล: รองรับทั้งแบบรวมและแยก ──
+        let firstName=String(e.firstName||'').trim();
+        let lastName=String(e.lastName||'').trim();
+
+        // ถ้า lastName ว่าง — ชื่อเต็มอยู่ใน firstName ช่องเดียว
+        if(!lastName && firstName.includes(' ')){
+          const parts=firstName.split(/\s+/);
+          firstName=parts[0];
+          lastName=parts.slice(1).join(' ');
+        }
+
+        // ลบคำนำหน้าออกจาก firstName เฉพาะถ้าหลังลบแล้วยังมีค่า
+        const prefixRe=/^(นาย|นาง(?:สาว)?|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.)\s*/;
+        const stripped=firstName.replace(prefixRe,'').trim();
+        if(stripped) firstName=stripped; // ลบได้เฉพาะถ้าไม่ว่าง
+
+        // ถ้า firstName ยังว่างอยู่ — ใช้ code แทน
+        if(!firstName) firstName=String(e.code||'–');
+
+        // ── Factory: รองรับค่าเก่า F1/F2/F3 ──
+        const rawFactory=String(e.factory||'AVP1').trim();
+        const factory=FACTORY_MAP[rawFactory]||(VALID_FACTORIES.includes(rawFactory)?rawFactory:'AVP1');
+
+        // ── Shift: รองรับ Day(I), Day(II), กะA, Shift A ฯลฯ ──
         const rawShift=String(e.shift||'Day').trim();
-        const shift=['Day','A','B','C'].includes(rawShift)?rawShift:'Day';
+        let shift='Day';
+        if(/^Day/i.test(rawShift)) shift='Day';
+        else if(/^A$/i.test(rawShift)||/กะ\s*A/i.test(rawShift)||/Shift\s*A/i.test(rawShift)) shift='A';
+        else if(/^B$/i.test(rawShift)||/กะ\s*B/i.test(rawShift)||/Shift\s*B/i.test(rawShift)) shift='B';
+        else if(/^C$/i.test(rawShift)||/กะ\s*C/i.test(rawShift)||/Shift\s*C/i.test(rawShift)) shift='C';
+        else if(VALID_SHIFTS.includes(rawShift)) shift=rawShift;
+
         return {
           id:       parseInt(e.id)||i+1,
-          code:     e.code||'',
-          firstName:e.firstName||'',
-          lastName: e.lastName||'',
-          position: e.position||'พนักงานผลิต',
+          code:     String(e.code||'').trim(),
+          firstName,
+          lastName,
+          position: String(e.position||'พนักงานผลิต').trim(),
           factory,
           shift,
-          workcell: e.workcell||'',
-          process:  e.process||'',
-          active:   String(e.active||'true').toLowerCase()!=='false',
+          workcell: String(e.workcell||'').trim(),
+          process:  String(e.process||'').trim(),
+          active:   String(e.active||'true').toUpperCase()!=='FALSE',
           _row:     e._row,
         };
-      });
+      })
+      .filter(e=>e.code); // กรองเฉพาะที่มีรหัส (ไม่ต้องมี firstName)
+
     if(loaded.length===0) return false;
     employees=loaded;
     nextId=Math.max(...employees.map(e=>e.id))+1;
+    console.log(`✅ โหลดพนักงาน ${employees.length} คนจาก Sheet สำเร็จ`);
     populateWcSelects();
     return true;
   }catch(err){
