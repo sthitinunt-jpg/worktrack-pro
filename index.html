@@ -501,7 +501,38 @@ select.form-control{cursor:pointer;}
 .import-step.done{background:var(--green-bg);color:var(--green);border-color:var(--green);}
 .step-num{display:block;font-size:16px;font-weight:800;margin-bottom:2px;}
 
-/* rate ring */
+/* ── CALENDAR ── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px;}
+.cal-header-day{text-align:center;font-size:11px;font-weight:700;color:var(--text3);padding:6px 0;text-transform:uppercase;}
+.cal-day{
+  aspect-ratio:1;border-radius:var(--radius-sm);border:1.5px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .15s;position:relative;font-size:13px;font-weight:600;
+  background:var(--bg2);
+}
+.cal-day:hover{border-color:var(--border2);background:var(--accent-bg);}
+.cal-day.empty{background:transparent;border-color:transparent;cursor:default;}
+.cal-day.workday{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+.cal-day.holiday{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.cal-day.today{box-shadow:0 0 0 2px var(--accent);}
+.cal-day.other-month{opacity:.35;}
+.cal-day .cal-label{font-size:9px;font-weight:700;margin-top:1px;}
+.cal-day.workday .cal-label{color:var(--green);}
+.cal-day.holiday .cal-label{color:var(--red);}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-month-title{font-size:16px;font-weight:800;color:var(--text);}
+.cal-legend{display:flex;gap:14px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.cal-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);}
+.cal-legend-dot{width:12px;height:12px;border-radius:3px;border:1.5px solid;}
+.holiday-list{display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;}
+.holiday-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);}
+.holiday-item .h-date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);min-width:90px;}
+.holiday-item .h-name{flex:1;font-size:13px;font-weight:600;}
+.holiday-item .h-type{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.h-type.public{background:var(--red-bg);color:var(--red);}
+.h-type.company{background:var(--yellow-bg);color:var(--yellow);}
+.h-type.work{background:var(--green-bg);color:var(--green);}
+
 .rate-circle{
   width:72px;height:72px;border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -570,6 +601,7 @@ select.form-control{cursor:pointer;}
     <div class="nav-item" onclick="showPage('employees')"><span class="icon">👥</span>รายชื่อพนักงาน</div>
     <div class="nav-item" onclick="showPage('import')"><span class="icon">📥</span>นำเข้า Excel</div>
     <div class="nav-item" onclick="showPage('report')"><span class="icon">📈</span>รายงานสถิติ</div>
+    <div class="nav-item" onclick="showPage('holiday')"><span class="icon">📅</span>ปฏิทินวันทำงาน</div>
   </nav>
   <div class="sidebar-footer">
     <div class="user-card">
@@ -595,6 +627,7 @@ select.form-control{cursor:pointer;}
       <span id="topRoleChip" class="role-chip" style="font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;"></span>
       <span id="topUserName" style="font-size:13px;font-weight:700;color:var(--text2);"></span>
       <button class="btn btn-primary btn-sm" id="btnRecordToday" onclick="showPage('attendance')">+ บันทึกวันนี้</button>
+      <button class="btn btn-ghost btn-sm" onclick="refreshData()" title="รีเฟรชข้อมูลจาก Google Sheets" style="padding:7px 10px;">🔄</button>
       <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="ออกจากระบบ" style="padding:7px 10px;">🚪</button>
     </div>
   </div>
@@ -622,6 +655,12 @@ select.form-control{cursor:pointer;}
             <option value="A">กะ A</option>
             <option value="B">กะ B</option>
             <option value="C">กะ C</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><label>ตำแหน่ง</label>
+          <select id="db-position" onchange="renderDashboard()">
+            <option value="">ทั้งหมด</option>
           </select>
         </div>
         <div class="filter-divider"></div>
@@ -922,9 +961,106 @@ select.form-control{cursor:pointer;}
       </div>
     </div>
 
+  <!-- ════ HOLIDAY CALENDAR ════ -->
+  <div class="page" id="page-holiday">
+    <div class="sec-header">
+      <div class="section-title">ปฏิทินวันทำงาน / วันหยุด</div>
+      <div id="holidayAdminControls" style="display:none;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="setAllWorkdays()">✅ ตั้งทุกวันเป็นวันทำงาน</button>
+        <button class="btn btn-primary btn-sm" onclick="openHolidayModal()">+ เพิ่มวันหยุด</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Calendar -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📅 ปฏิทิน</div>
+        </div>
+        <div class="card-body">
+          <div class="cal-nav">
+            <button class="btn btn-ghost btn-sm" onclick="calPrevMonth()">← ก่อนหน้า</button>
+            <span class="cal-month-title" id="calMonthTitle"></span>
+            <button class="btn btn-ghost btn-sm" onclick="calNextMonth()">ถัดไป →</button>
+          </div>
+          <div class="cal-legend">
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green-bg);border-color:var(--green);"></div>วันทำงาน</div>
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--red-bg);border-color:var(--red);"></div>วันหยุด</div>
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--bg2);border-color:var(--border);"></div>ไม่ได้กำหนด</div>
+          </div>
+          <div class="cal-grid" id="calDaysHeader"></div>
+          <div class="cal-grid" id="calDays"></div>
+          <div style="margin-top:12px;padding:10px 14px;background:var(--accent-bg);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);display:none;" class="cal-tip">
+            💡 คลิกที่วันเพื่อสลับระหว่างวันทำงาน / วันหยุด (เฉพาะ Admin)
+          </div>
+          <div style="margin-top:12px;padding:10px 14px;background:var(--green-bg);border-radius:var(--radius-sm);font-size:12px;color:var(--green);" id="calViewNote">
+            📅 ดูปฏิทินวันทำงาน — ติดต่อ Admin เพื่อแก้ไข
+          </div>
+        </div>
+      </div>
+
+      <!-- Holiday list -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🗓️ รายการวันหยุด</div>
+          <span id="holidayCount" style="font-size:12px;color:var(--text3);"></span>
+        </div>
+        <div class="card-body">
+          <div class="holiday-list" id="holidayList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 สรุปวันทำงานเดือนนี้</div></div>
+      <div class="card-body">
+        <div class="stat-grid" id="holidaySummary"></div>
+      </div>
+    </div>
+  </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /layout -->
+
+<!-- ════ MODAL: วันหยุด ════ -->
+<div class="modal-overlay" id="holidayModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🗓️ เพิ่มวันหยุด</div>
+      <button class="modal-close" onclick="closeModal('holidayModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่เริ่มต้น *</label>
+          <input type="date" class="form-control" id="hDateFrom">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่สิ้นสุด (ถ้าหยุดต่อเนื่อง)</label>
+          <input type="date" class="form-control" id="hDateTo">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อวันหยุด *</label>
+        <input type="text" class="form-control" id="hName" placeholder="เช่น วันสงกรานต์, หยุดชดเชย...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ประเภท</label>
+        <select class="form-control" id="hType">
+          <option value="public">วันหยุดนักขัตฤกษ์</option>
+          <option value="company">วันหยุดบริษัท</option>
+          <option value="work">วันทำงานพิเศษ (เปิดพิเศษ)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('holidayModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveHoliday()">บันทึก</button>
+    </div>
+  </div>
+</div>
 
 <!-- ════ MODAL: Add/Edit Employee ════ -->
 <div class="modal-overlay" id="empModal">
@@ -1049,9 +1185,23 @@ function dateRangeDates(from,to){
   return dates;
 }
 function getStatus(date,empId){return(attendanceData[date]||{})[empId]||'present';}
-function allWorkcells(){return [...new Set(employees.map(e=>e.workcell).filter(Boolean))].sort();}
-function filteredEmps({factory='',shift='',workcell=''}={}){
-  return employees.filter(e=>(factory?e.factory===factory:true)&&(shift?e.shift===shift:true)&&(workcell?e.workcell===workcell:true));
+function allPositions(){return [...new Set(employees.map(e=>e.position).filter(Boolean))].sort();}
+function filteredEmps({factory='',shift='',workcell='',position=''}={}){
+  return employees.filter(e=>
+    (factory?e.factory===factory:true)&&
+    (shift?e.shift===shift:true)&&
+    (workcell?e.workcell===workcell:true)&&
+    (position?e.position===position:true)
+  );
+}
+function populatePositionSelect(){
+  const positions=allPositions();
+  ['db-position'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">ทั้งหมด</option>'+positions.map(p=>`<option value="${p}">${p}</option>`).join('');
+    if(cur)el.value=cur;
+  });
 }
 function getDayStats(date,opts={}){
   const emps=filteredEmps(opts);
@@ -1086,6 +1236,7 @@ function populateWcSelects(){
     el.innerHTML='<option value="">ทุก Workcell</option>'+wcs.map(w=>`<option value="${w}">${w}</option>`).join('');
     if(cur) el.value=cur;
   });
+  populatePositionSelect();
 }
 
 // ── SIDEBAR ──
@@ -1107,6 +1258,7 @@ const PAGE_INFO={
   employees:['รายชื่อพนักงาน','จัดการข้อมูลพนักงาน'],
   import:['นำเข้าจาก Excel','อัปโหลดและกำหนด Column'],
   report:['รายงานสถิติ','วิเคราะห์การมาทำงาน'],
+  holiday:['ปฏิทินวันทำงาน','กำหนดวันทำงาน / วันหยุด'],
 };
 function showPage(id){
   // Permission check
@@ -1128,6 +1280,7 @@ function showPage(id){
   if(id==='attendance')renderAttPage();
   if(id==='employees')renderEmpTable();
   if(id==='report')renderReport();
+  if(id==='holiday'){calYear=new Date().getFullYear();calMonth=new Date().getMonth();renderCalendar();}
   closeSidebar();
 }
 
@@ -1165,13 +1318,21 @@ function renderDashboard(){
   const fac=document.getElementById('db-factory').value;
   const wc=document.getElementById('db-wc').value;
   const sh=document.getElementById('db-shift').value;
-  const opts={factory:fac,workcell:wc,shift:sh};
+  const pos=document.getElementById('db-position')?document.getElementById('db-position').value:'';
+  const opts={factory:fac,workcell:wc,shift:sh,position:pos};
   const mode=document.getElementById('db-mode').value;
 
   // aggregate stats across selected dates
   let agg={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:0};
   dates.forEach(d=>{const s=getDayStats(d,opts);['present','absent','late','leave','sick','business','total'].forEach(k=>agg[k]+=s[k]);});
-  const aggRate=agg.total?Math.round((agg.present+agg.late)/agg.total*100):0;
+  const aggRate=(()=>{
+    let totalPresent=0, totalEmps=0;
+    dates.filter(d=>isWorkday(d)).forEach(d=>{
+      const s=getDayStats(d,opts);
+      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
+    });
+    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
+  })();
 
   // use refDate for "today's" single-day cards
   const dayS=getDayStats(refDate,opts);
@@ -1183,7 +1344,14 @@ function renderDashboard(){
 
   // week avg for stat card
   const wd=weekDates();
-  const avgRate=Math.round(wd.reduce((a,d)=>a+getDayStats(d,opts).rate,0)/wd.length);
+  const avgRate=(()=>{
+    let totalPresent=0, totalEmps=0;
+    wd.filter(d=>isWorkday(d)).forEach(d=>{
+      const s=getDayStats(d,opts);
+      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
+    });
+    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
+  })();
   const emps=filteredEmps(opts);
 
   document.getElementById('statGrid').innerHTML=`
@@ -1285,32 +1453,38 @@ function renderAttGrid(){
   const wc=document.getElementById('att-wc').value;
   if(!attendanceData[date])attendanceData[date]={};
   const emps=filteredEmps({factory:fac,workcell:wc,shift:currentShift});
+
+  // default ทุกคนเป็น present ถ้ายังไม่มีข้อมูล
+  emps.forEach(e=>{
+    if(attendanceData[date][e.id]==null) attendanceData[date][e.id]='present';
+  });
+
   document.getElementById('attGrid').innerHTML=emps.length===0
     ?`<div class="empty-state"><div class="icon">👥</div><p>ไม่พบพนักงานตามเงื่อนไข</p></div>`
     :emps.map(e=>{
       const s=attendanceData[date][e.id]||'present';
       const ci=e.id%AV_COLORS.length;
+      const hrs=getShiftHours(e.shift,s);
       return`<div class="att-card">
-        <div class="emp-avatar" style="background:${AV_COLORS[ci]}18;color:${AV_COLORS[ci]};">${e.firstName[0]}</div>
+        <div class="emp-avatar" style="background:${AV_COLORS[ci]}18;color:${AV_COLORS[ci]};flex-shrink:0;">${e.firstName[0]}</div>
         <div class="emp-info">
           <div class="emp-name">${e.firstName} ${e.lastName}</div>
           <div class="emp-meta">
             <span><span style="font-family:'IBM Plex Mono';font-size:10px;">${e.code}</span></span>
             <span>📍 <span class="wc-badge" style="font-size:10px;">${e.workcell||'–'}</span></span>
-            <span style="color:var(--text3);">${e.process||''}</span>
+            <span style="font-size:10px;font-weight:700;color:var(--accent);">${hrs>0?hrs+' ชม.':''}</span>
           </div>
         </div>
         <select class="att-select s-${s}" id="sel-${e.id}" onchange="onSelChange(${e.id},'${date}',this)">
           <option value="present" ${s==='present'?'selected':''}>✅ มาทำงาน</option>
           <option value="late"    ${s==='late'?'selected':''}>⏰ มาสาย</option>
           <option value="absent"  ${s==='absent'?'selected':''}>❌ ขาดงาน</option>
-          <option value="leave"    ${s==='leave'?'selected':''}>📋 ลาพักร้อน</option>
-          <option value="business" ${s==='business'?'selected':''}>🏢 ลากิจ</option>
+          <option value="leave"   ${s==='leave'?'selected':''}>📋 ลาพักร้อน</option>
+          <option value="business"${s==='business'?'selected':''}>🏢 ลากิจ</option>
           <option value="sick"    ${s==='sick'?'selected':''}>🤒 ลาป่วย</option>
         </select>
       </div>`;
     }).join('');
-  // pending badge
   const todayEmps=filteredEmps({}).filter(e=>!attendanceData[today()]||attendanceData[today()][e.id]==null);
   document.getElementById('pendingBadge').textContent=todayEmps.length;
 }
@@ -1318,6 +1492,43 @@ function onSelChange(empId,date,sel){
   if(!attendanceData[date])attendanceData[date]={};
   attendanceData[date][empId]=sel.value;
   sel.className='att-select s-'+sel.value;
+  // อัปเดตชั่วโมงที่แสดงใน card
+  const emp=employees.find(e=>e.id===empId);
+  if(emp){
+    const hrs=getShiftHours(emp.shift,sel.value);
+    const meta=sel.closest('.att-card')?.querySelector('.emp-meta span:last-child');
+    if(meta) meta.textContent=hrs>0?hrs+' ชม.':'';
+  }
+}
+
+// ── ShiftConfig — กำหนดชั่วโมงต่อกะจาก Sheet ──
+let shiftConfig = {
+  Day:{hours:8,startTime:'08:00',endTime:'17:00'},
+  A:  {hours:8,startTime:'06:00',endTime:'14:00'},
+  B:  {hours:8,startTime:'14:00',endTime:'22:00'},
+  C:  {hours:8,startTime:'22:00',endTime:'06:00'},
+};
+
+function getShiftHours(shift,status){
+  if(['absent','leave','sick','business'].includes(status)) return 0;
+  return (shiftConfig[shift]||{hours:8}).hours;
+}
+
+async function loadShiftConfig(){
+  try{
+    const rows=await gsReadAPI('ShiftConfig!A:D');
+    if(!rows||rows.length<2) return;
+    const headers=rows[0];
+    rows.slice(1).filter(r=>r[0]).forEach(r=>{
+      const obj={};headers.forEach((h,i)=>obj[h]=r[i]||'');
+      const shift=String(obj.shift||'').trim();
+      if(shift) shiftConfig[shift]={
+        hours:parseFloat(obj.hours)||8,
+        startTime:obj.startTime||'',
+        endTime:obj.endTime||''
+      };
+    });
+  }catch(e){ console.warn('ShiftConfig load failed, using defaults'); }
 }
 function selectShift(sh,btn){
   currentShift=sh;
@@ -1371,7 +1582,7 @@ function renderEmpTable(){
   const dates=monthDates();
   document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
     const p=dates.filter(d=>['present','late'].includes(getStatus(d,e.id))).length;
-    const r=Math.round(p/dates.length*100);
+    const r=(dates.length?Math.round((p+l)/dates.length*100):0);
     return`<tr>
       <td style="color:var(--text3);">${i+1}</td>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
@@ -1607,7 +1818,14 @@ function renderReport(){
   const emps=filteredEmps(opts);
   let tot={present:0,absent:0,late:0,leave:0,sick:0,total:0};
   dates.forEach(d=>{const s=getDayStats(d,opts);Object.keys(tot).forEach(k=>tot[k]+=(s[k]||0));});
-  const rate=tot.total?Math.round((tot.present+tot.late)/tot.total*100):0;
+  const rate=(()=>{
+    let totalPresent=0, totalEmps=0;
+    dates.filter(d=>isWorkday(d)).forEach(d=>{
+      const s=getDayStats(d,{factory:fac,workcell:wc,shift:sh});
+      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
+    });
+    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
+  })();
   document.getElementById('rptStats').innerHTML=`
     <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-label">พนักงาน</div><div class="stat-value">${emps.length}</div><div class="stat-sub">คน</div></div>
     <div class="stat-card green"><div class="stat-icon">📈</div><div class="stat-label">อัตราเฉลี่ย</div><div class="stat-value">${rate}%</div><div class="stat-sub">การมาทำงาน</div></div>
@@ -1634,7 +1852,8 @@ function renderReport(){
   document.getElementById('rptTable').innerHTML=emps.map(e=>{
     let p=0,a=0,l=0,lv=0,sk=0,bz=0;
     dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-    const r=dates.length?Math.round((p+l)/dates.length*100):0;
+    const workDates=dates.filter(d=>isWorkday(d));
+    const r=workDates.length?Math.round((p+l)/workDates.length*100):0;
     return`<tr>
       <td style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</td>
       <td style="font-weight:700;">${e.firstName} ${e.lastName}</td>
@@ -1813,16 +2032,17 @@ async function saveAttendanceToSheet(date, empId, status){
   const emp=employees.find(e=>e.id===empId);
   if(!emp) return;
   try{
-    const rows=await gsReadAPI('Attendance!A:J');
+    const rows=await gsReadAPI('Attendance!A:K');
     const data=parseRows(rows);
     const existing=data.find(r=>r.date===date&&String(r.empId)===String(empId));
+    const hrs=getShiftHours(emp.shift,status);
     const rowData=[
       existing?existing.id:Date.now()+'_'+empId,
       date, empId, emp.code,
       emp.shift, status,
       currentUser?currentUser.name:'–',
       new Date().toISOString(),
-      emp.factory, emp.workcell
+      emp.factory, emp.workcell, hrs
     ];
     if(existing){
       await gsUpdate('Attendance', existing._row, rowData);
@@ -1890,10 +2110,10 @@ const USERS = [
 // supervisor → บันทึก+ดูได้เฉพาะโรงงานตัวเอง  ห้าม employees/users
 // viewer     → ดูรายงานได้อย่างเดียว
 const ROLE_PAGES = {
-  admin:      ['dashboard','attendance','employees','import','report'],
-  manager:    ['dashboard','attendance','employees','import','report'],
-  supervisor: ['dashboard','attendance','report'],
-  viewer:     ['dashboard','report'],
+  admin:      ['dashboard','attendance','employees','import','report','holiday'],
+  manager:    ['dashboard','attendance','employees','import','report','holiday'],
+  supervisor: ['dashboard','attendance','report','holiday'],
+  viewer:     ['dashboard','report','holiday'],
 };
 const ROLE_CAN_EDIT = {admin:true,manager:true,supervisor:true,viewer:false};
 const ROLE_COLORS = {
@@ -1905,12 +2125,183 @@ const ROLE_COLORS = {
 
 let currentUser = null;
 
+// ── Refresh data from Google Sheets ──
+async function refreshData(){
+  if(!currentUser){showToast('⚠️ กรุณา Login ก่อน');return;}
+  const btn=document.querySelector('[onclick="refreshData()"]');
+  if(btn){btn.textContent='⏳';btn.disabled=true;}
+  showToast('⏳ กำลังโหลดข้อมูลใหม่จาก Google Sheets...');
+  try{
+    // reload users
+    USERS.splice(0,USERS.length,...DEFAULT_USERS);
+    await loadUsersFromSheet();
+    // reload employees
+    await loadEmployeesFromSheet();
+    // reload attendance (2 months)
+    const now=new Date();
+    const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
+    attendanceData={};
+    await loadAttendanceFromSheet(from,null);
+    // reload shift config
+    await loadShiftConfig();
+    initData();
+    populateWcSelects();
+    // re-render current page
+    const activePage=document.querySelector('.page.active');
+    if(activePage){
+      const id=activePage.id.replace('page-','');
+      if(id==='dashboard')renderDashboard();
+      else if(id==='employees')renderEmpTable();
+      else if(id==='attendance')renderAttPage();
+      else if(id==='report')renderReport();
+    }
+    showToast('✅ โหลดข้อมูลใหม่สำเร็จ');
+  }catch(e){
+    showToast('❌ โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    console.warn('Refresh failed:', e);
+  }finally{
+    if(btn){btn.textContent='🔄';btn.disabled=false;}
+  }
+}
+
 function fillLogin(u,p){
   document.getElementById('loginUser').value=u;
   document.getElementById('loginPass').value=p;
 }
 
 // Default users — ใช้เสมอเมื่อ Sheet โหลดไม่ได้
+// ══════════════════════════════════════════════
+//  HOLIDAY / WORKDAY CALENDAR
+// ══════════════════════════════════════════════
+let dayStatus = {};
+let holidays  = [];
+let calYear   = new Date().getFullYear();
+let calMonth  = new Date().getMonth();
+
+function isWeekend(ds){ const d=new Date(ds); return d.getDay()===0||d.getDay()===6; }
+function isHoliday(ds){
+  if(dayStatus[ds]==='holiday') return true;
+  if(dayStatus[ds]==='work')    return false;
+  return isWeekend(ds);
+}
+function isWorkday(ds){ return !isHoliday(ds); }
+
+function renderCalendar(){
+  // แสดง/ซ่อนปุ่ม admin
+  const ctrl=document.getElementById('holidayAdminControls');
+  if(ctrl) ctrl.style.display=isAdminRole()?'flex':'none';
+
+  const DAYS=['อา','จ','อ','พ','พฤ','ศ','ส'];
+  document.getElementById('calDaysHeader').innerHTML=DAYS.map(d=>`<div class="cal-header-day">${d}</div>`).join('');
+  const y=calYear,m=calMonth;
+  const firstDay=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  document.getElementById('calMonthTitle').textContent=`${thMonths[m]} ${y+543}`;
+
+  const canEdit=isAdminRole();
+  let html='';
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-day empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hol=isHoliday(ds);
+    const cursor=canEdit?'cursor:pointer;':'cursor:default;';
+    const title=canEdit?(hol?'คลิกเพื่อเปลี่ยนเป็นวันทำงาน':'คลิกเพื่อเปลี่ยนเป็นวันหยุด'):(hol?'วันหยุด':'วันทำงาน');
+    html+=`<div class="cal-day ${hol?'holiday':'workday'}${ds===today()?' today':''}" onclick="toggleDay('${ds}')" title="${title}" style="${cursor}">
+      <span>${d}</span><span class="cal-label">${hol?'หยุด':'ทำงาน'}</span>
+    </div>`;
+  }
+  document.getElementById('calDays').innerHTML=html;
+
+  // คำแนะนำ
+  const calViewNote=document.getElementById('calViewNote');
+  if(calViewNote) calViewNote.style.display=canEdit?'none':'block';
+  const tips=document.querySelectorAll('#page-holiday .cal-tip');
+  tips.forEach(t=>t.style.display=canEdit?'block':'none');
+
+  renderHolidayList();
+  renderHolidaySummary();
+}
+
+function isAdminRole(){ return currentUser&&(currentUser.role==='admin'||currentUser.role==='manager'); }
+
+function toggleDay(ds){
+  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin เท่านั้นที่แก้ไขปฏิทินได้');return;}
+  const hol=isHoliday(ds);
+  dayStatus[ds]=hol?'work':'holiday';
+  renderCalendar();
+  showToast(hol?`✅ ${fmtTH(ds)} — วันทำงาน`:`🔴 ${fmtTH(ds)} — วันหยุด`);
+}
+function calPrevMonth(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calNextMonth(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
+function setAllWorkdays(){
+  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin เท่านั้นที่แก้ไขได้');return;}
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  for(let d=1;d<=days;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    dayStatus[ds]='work';
+  }
+  renderCalendar();
+  showToast('✅ ตั้งทุกวันในเดือนนี้เป็นวันทำงาน');
+}
+
+function openHolidayModal(){
+  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin เท่านั้นที่เพิ่มวันหยุดได้');return;}
+  document.getElementById('hDateFrom').value=today();
+  document.getElementById('hDateTo').value='';
+  document.getElementById('hName').value='';
+  document.getElementById('hType').value='public';
+  document.getElementById('holidayModal').classList.add('open');
+}
+
+function saveHoliday(){
+  const from=document.getElementById('hDateFrom').value;
+  const to=document.getElementById('hDateTo').value||from;
+  const name=document.getElementById('hName').value.trim();
+  const type=document.getElementById('hType').value;
+  if(!from||!name){showToast('❌ กรุณากรอกวันที่และชื่อ');return;}
+  const cur=new Date(from); const end=new Date(to);
+  while(cur<=end){
+    const ds=cur.toISOString().split('T')[0];
+    dayStatus[ds]=type==='work'?'work':'holiday';
+    cur.setDate(cur.getDate()+1);
+  }
+  holidays.push({from,to,name,type});
+  closeModal('holidayModal');
+  renderCalendar();
+  showToast(`✅ บันทึก "${name}" สำเร็จ`);
+}
+
+function renderHolidayList(){
+  const allHol=Object.entries(dayStatus).filter(([,s])=>s==='holiday').sort(([a],[b])=>a.localeCompare(b));
+  document.getElementById('holidayCount').textContent=`${allHol.length} วัน`;
+  const typeLabel={public:'นักขัตฤกษ์',company:'บริษัท',work:'พิเศษ'};
+  const getH=(d)=>holidays.find(h=>d>=h.from&&d<=h.to);
+  document.getElementById('holidayList').innerHTML=allHol.length===0
+    ?`<div class="empty-state"><div class="icon">📅</div><p>ยังไม่มีวันหยุดที่กำหนด<br><small>คลิกวันในปฏิทินเพื่อกำหนดวันหยุด</small></p></div>`
+    :allHol.map(([d])=>{const h=getH(d);const tp=h?h.type:'company';return`
+      <div class="holiday-item">
+        <span class="h-date">${fmtTH(d)}</span>
+        <span class="h-name">${h?h.name:isWeekend(d)?'วันหยุดสุดสัปดาห์':'วันหยุด'}</span>
+        <span class="h-type ${tp}">${typeLabel[tp]||'บริษัท'}</span>
+        ${isAdminRole()?`<button class="btn btn-ghost btn-xs" onclick="toggleDay('${d}')" style="color:var(--green);">เปิด</button>`:''}
+      </div>`}).join('');
+}
+
+function renderHolidaySummary(){
+  const dates=monthDates(calYear,calMonth);
+  const wd=dates.filter(d=>isWorkday(d)).length;
+  const hd=dates.filter(d=>isHoliday(d)).length;
+  const we=dates.filter(d=>isWeekend(d)&&dayStatus[d]!=='work').length;
+  document.getElementById('holidaySummary').innerHTML=`
+    <div class="stat-card blue"><div class="stat-icon">📅</div><div class="stat-label">วันทั้งหมด</div><div class="stat-value">${dates.length}</div><div class="stat-sub">วันในเดือนนี้</div></div>
+    <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">วันทำงาน</div><div class="stat-value">${wd}</div><div class="stat-sub">วัน</div></div>
+    <div class="stat-card red"><div class="stat-icon">🔴</div><div class="stat-label">วันหยุดรวม</div><div class="stat-value">${hd}</div><div class="stat-sub">วัน</div></div>
+    <div class="stat-card yellow"><div class="stat-icon">🏖️</div><div class="stat-label">เสาร์-อาทิตย์</div><div class="stat-value">${we}</div><div class="stat-sub">วัน</div></div>
+  `;
+}
+
 const DEFAULT_USERS = [
   {username:'admin',   password:'admin123', name:'ผู้ดูแลระบบ',   role:'admin',      factory:null,  roleLabel:'Admin'},
   {username:'manager1',password:'pass1234', name:'ผู้จัดการ',      role:'manager',    factory:null,  roleLabel:'Manager'},
@@ -1936,8 +2327,13 @@ async function doLogin(){
     return;
   }
   currentUser=user;
-  // บันทึก session ไว้ใน sessionStorage
-  try{ sessionStorage.setItem('wt_user', JSON.stringify(user)); }catch(e){}
+  // บันทึก session ทั้ง sessionStorage และ localStorage เพื่อป้องกันเด้งออกเมื่อรีเฟรช
+  try{
+    const userData=JSON.stringify(user);
+    sessionStorage.setItem('wt_user', userData);
+    localStorage.setItem('wt_user', userData);
+    localStorage.setItem('wt_login_time', Date.now().toString());
+  }catch(e){}
 
   btn.textContent='⏳ กำลังโหลดข้อมูล...';
   try{
@@ -1946,6 +2342,7 @@ async function doLogin(){
     const now=new Date();
     const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
     await loadAttendanceFromSheet(from,null);
+    await loadShiftConfig(); // โหลดชั่วโมงต่อกะจาก Sheet
   }catch(e){ console.warn('Data load error:', e); }
   initData();
 
@@ -1961,7 +2358,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!document.getElement
 function doLogout(){
   if(!confirm('ยืนยันออกจากระบบ?'))return;
   currentUser=null;
-  try{ sessionStorage.removeItem('wt_user'); }catch(e){}
+  try{
+    sessionStorage.removeItem('wt_user');
+    localStorage.removeItem('wt_user');
+    localStorage.removeItem('wt_login_time');
+  }catch(e){}
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
@@ -1971,12 +2372,31 @@ function doLogout(){
 // ── restore session on page load/refresh ──
 async function restoreSession(){
   try{
-    const saved = sessionStorage.getItem('wt_user');
+    // ลอง sessionStorage ก่อน ถ้าไม่มีลอง localStorage (รีเฟรช)
+    let saved = sessionStorage.getItem('wt_user');
+    if(!saved){
+      saved = localStorage.getItem('wt_user');
+      if(saved){
+        // ตรวจสอบว่า login ไม่เกิน 8 ชั่วโมง
+        const loginTime = parseInt(localStorage.getItem('wt_login_time')||'0');
+        const elapsed = Date.now() - loginTime;
+        if(elapsed > 8*60*60*1000){
+          // หมดเวลา — ล้าง session
+          localStorage.removeItem('wt_user');
+          localStorage.removeItem('wt_login_time');
+          saved = null;
+        }
+      }
+    }
     if(!saved) return false;
     const user = JSON.parse(saved);
     if(!user||!user.username) return false;
     currentUser = user;
-    // โหลดข้อมูลพนักงานและการมาทำงาน
+    // sync ทั้งสอง storage
+    try{
+      sessionStorage.setItem('wt_user', JSON.stringify(user));
+    }catch(e){}
+    // โหลดข้อมูล
     try{
       USERS.splice(0,USERS.length,...DEFAULT_USERS);
       await loadUsersFromSheet();
@@ -1985,6 +2405,7 @@ async function restoreSession(){
       const now=new Date();
       const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
       await loadAttendanceFromSheet(from,null);
+      await loadShiftConfig();
     }catch(e){ console.warn('Session restore data error:', e); }
     initData();
     document.getElementById('loginScreen').classList.add('hidden');
@@ -2075,7 +2496,7 @@ function downloadReport(type){
     emps.forEach(e=>{
       let p=0,a=0,l=0,lv=0,sk=0;
       let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-      const r=dates.length?Math.round((p+l)/dates.length*100):0;
+      const r=dates.length?(dates.length?Math.round((p+l)/dates.length*100):0):0;
       rows.push([e.code,e.firstName,e.lastName,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',e.shift,p,l,a,lv,sk,r+'%']);
     });
     const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
@@ -2097,7 +2518,7 @@ function downloadReport(type){
     emps.forEach(e=>{
       let p=0,a=0,l=0,lv=0,sk=0;
       let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-      const r=dates.length?Math.round((p+l)/dates.length*100):0;
+      const r=dates.length?(dates.length?Math.round((p+l)/dates.length*100):0):0;
       ws_data.push([e.code,`${e.firstName} ${e.lastName}`,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',`กะ ${e.shift}`,p,l,a,lv,sk,dates.length,r]);
     });
     // Summary row
@@ -2152,7 +2573,8 @@ function printReport(){
   emps.forEach((e,i)=>{
     let p=0,a=0,l=0,lv=0,sk=0;
     let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-    const r=dates.length?Math.round((p+l)/dates.length*100):0;
+    const workDates=dates.filter(d=>isWorkday(d));
+    const r=workDates.length?Math.round((p+l)/workDates.length*100):0;
     rows+=`<tr style="background:${i%2?'#f7f9fc':'#fff'}">
       <td>${e.code}</td><td>${e.firstName} ${e.lastName}</td>
       <td>${FACTORY_NAMES[e.factory]||e.factory}</td><td>${e.workcell||'–'}</td><td>กะ ${e.shift}</td>
@@ -2200,10 +2622,17 @@ document.getElementById('attDate').value=today();
 document.getElementById('topDate').textContent=fmtTH(today());
 initData();
 populateWcSelects();
+
 // พยายาม restore session ก่อน ถ้าไม่มีค่อยรอ Login
-restoreSession().then(ok=>{
+restoreSession().then(async ok=>{
   if(!ok){
     // ไม่มี session — แสดงหน้า Login
+    // แต่โหลด employees จาก Sheet ล่วงหน้า เพื่อให้เร็วขึ้น
+    try{
+      await loadEmployeesFromSheet();
+      await loadShiftConfig();
+      populateWcSelects();
+    }catch(e){ console.warn('Preload failed'); }
     document.getElementById('loginScreen').classList.remove('hidden');
   }
 });
