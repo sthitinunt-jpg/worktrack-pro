@@ -1927,15 +1927,53 @@ function parseRows(rows){
 }
 
 // ── READ via Google Sheets API (public sheet) ──
+// อ่านข้อมูลผ่าน Apps Script (เดียว ไม่ใช้ Sheets API โดยตรงเพราะ CORS)
 async function gsReadAPI(range){
+  const tab=range.split('!')[0];
+  return await gsGetViaScript(tab);
+}
+
+async function gsGetViaScript(tab){
   try{
-    const url=`${GS.BASE}/${GS.SHEET_ID}/values/${encodeURIComponent(range)}?key=${GS.API_KEY}`;
-    const r=await fetch(url);
-    if(!r.ok) throw new Error('API error: '+r.status);
-    const d=await r.json();
+    const url=`${GS.SCRIPT_URL}?tab=${encodeURIComponent(tab)}`;
+    console.log('📡 Loading tab:', tab, 'via Apps Script');
+    const r=await fetch(url, {
+      method:'GET',
+      headers:{'Accept':'application/json'},
+    });
+    const text=await r.text();
+    console.log('📥 Response length:', text.length, 'chars');
+    // Apps Script อาจ redirect ทำให้ text เป็น HTML
+    if(text.trim().startsWith('<')){
+      console.warn('⚠️ Got HTML instead of JSON - Apps Script may need redeployment');
+      // ลอง Sheets API แทน
+      return await gsReadDirect(tab);
+    }
+    const d=JSON.parse(text);
+    if(d.error){
+      console.warn('⚠️ Script error:', d.error);
+      return await gsReadDirect(tab);
+    }
+    console.log('✅ Got', (d.values||[]).length, 'rows from', tab);
     return d.values||[];
   }catch(err){
-    console.warn('gsReadAPI failed:', err);
+    console.error('❌ Apps Script failed:', err.message);
+    return await gsReadDirect(tab);
+  }
+}
+
+// fallback: Sheets API โดยตรง
+async function gsReadDirect(tab){
+  try{
+    const url=`${GS.BASE}/${GS.SHEET_ID}/values/${encodeURIComponent(tab+'!A:J')}?key=${GS.API_KEY}`;
+    console.log('🔄 Trying Sheets API direct for:', tab);
+    const r=await fetch(url);
+    const d=await r.json();
+    if(d.error){ console.error('❌ Sheets API error:', d.error.message); return []; }
+    console.log('✅ Got', (d.values||[]).length, 'rows via Sheets API');
+    return d.values||[];
+  }catch(err){
+    console.error('❌ Sheets API direct failed:', err.message);
     return [];
   }
 }
