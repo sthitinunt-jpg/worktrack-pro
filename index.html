@@ -1583,8 +1583,10 @@ function renderEmpTable(){
   document.getElementById('empCount').textContent=emps.length;
   const dates=monthDates();
   document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
-    const p=dates.filter(d=>['present','late'].includes(getStatus(d,e.id))).length;
-    const r=(dates.length?Math.round((p+l)/dates.length*100):0);
+    const workDates=dates.filter(d=>isWorkday(d));
+    const p=workDates.filter(d=>getStatus(d,e.id)==='present').length;
+    const late=workDates.filter(d=>getStatus(d,e.id)==='late').length;
+    const r=workDates.length?Math.round((p+late)/workDates.length*100):0;
     return`<tr>
       <td style="color:var(--text3);">${i+1}</td>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
