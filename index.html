@@ -320,6 +320,8 @@ tbody tr:hover td{background:var(--accent-bg);}
 .badge-a{background:var(--accent-bg);color:var(--shift-a);}
 .badge-b{background:var(--green-bg);color:var(--shift-b);}
 .badge-c{background:var(--yellow-bg);color:var(--shift-c);}
+.badge-dayo{background:#f3e8ff;color:#7c3aed;}
+.badge-dayf{background:#e0f2fe;color:#0891b2;}
 .badge-day{background:#e0f7fa;color:#0891b2;}
 
 /* ─── SHIFT TABS ─── */
@@ -651,7 +653,8 @@ select.form-control{cursor:pointer;}
         <div class="filter-group"><label>กะ</label>
           <select id="db-shift" onchange="renderDashboard()">
             <option value="">ทั้งหมด</option>
-            <option value="Day">กะ Day</option>
+            <option value="DayO">Day Office</option>
+            <option value="DayF">Day Factory</option>
             <option value="A">กะ A</option>
             <option value="B">กะ B</option>
             <option value="C">กะ C</option>
@@ -747,7 +750,8 @@ select.form-control{cursor:pointer;}
       </div>
 
       <div class="shift-tabs" id="shiftTabs">
-        <button class="shift-tab t-day" onclick="selectShift('Day',this)">กะ Day</button>
+        <button class="shift-tab t-day" onclick="selectShift('DayO',this)">Day Office</button>
+        <button class="shift-tab t-dayf" onclick="selectShift('DayF',this)">Day Factory</button>
         <button class="shift-tab" onclick="selectShift('A',this)">กะ A</button>
         <button class="shift-tab" onclick="selectShift('B',this)">กะ B</button>
         <button class="shift-tab" onclick="selectShift('C',this)">กะ C</button>
@@ -792,7 +796,8 @@ select.form-control{cursor:pointer;}
         </select>
         <select class="form-control" id="empShiftFilter" style="width:auto;" onchange="renderEmpTable()">
           <option value="">ทุกกะ</option>
-          <option value="Day">กะ Day</option>
+          <option value="DayO">Day Office</option>
+            <option value="DayF">Day Factory</option>
           <option value="A">กะ A</option><option value="B">กะ B</option><option value="C">กะ C</option>
         </select>
         <select class="form-control" id="empWcFilter" style="width:auto;" onchange="renderEmpTable()">
@@ -920,7 +925,8 @@ select.form-control{cursor:pointer;}
         <div class="filter-divider"></div>
         <div class="filter-group"><label>กะ</label>
           <select id="rpt-shift" onchange="renderReport()">
-            <option value="">ทั้งหมด</option><option value="Day">กะ Day</option><option value="A">กะ A</option><option value="B">กะ B</option><option value="C">กะ C</option>
+            <option value="">ทั้งหมด</option><option value="DayO">Day Office</option>
+            <option value="DayF">Day Factory</option><option value="A">กะ A</option><option value="B">กะ B</option><option value="C">กะ C</option>
           </select>
         </div>
         <div class="filter-divider"></div>
@@ -1075,7 +1081,8 @@ select.form-control{cursor:pointer;}
         <div class="form-group"><label class="form-label">รหัสพนักงาน *</label><input class="form-control" id="eCode" placeholder="EMP001"></div>
         <div class="form-group"><label class="form-label">กะ *</label>
           <select class="form-control" id="eShift">
-            <option value="Day">กะ Day</option>
+            <option value="DayO">Day Office</option>
+            <option value="DayF">Day Factory</option>
             <option value="A">กะ A</option>
             <option value="B">กะ B</option>
             <option value="C">กะ C</option>
@@ -1118,12 +1125,13 @@ const FACTORY_NAMES = {
   AVP5:'AVP5', Mold:'Mold', Logistic:'Logistic'
 };
 const SHIFT_INFO = {
-  Day:{label:'กะ Day',color:'#0891b2'},
-  A:  {label:'กะ A', color:'#2563eb'},
-  B:  {label:'กะ B', color:'#059669'},
-  C:  {label:'กะ C', color:'#d97706'}
+  DayO:{label:'Day Office', color:'#7c3aed'},
+  DayF:{label:'Day Factory',color:'#0891b2'},
+  A:   {label:'กะ A',       color:'#2563eb'},
+  B:   {label:'กะ B',       color:'#059669'},
+  C:   {label:'กะ C',       color:'#d97706'}
 };
-const ALL_SHIFTS=['Day','A','B','C'];
+const ALL_SHIFTS=['DayO','DayF','A','B','C'];
 const STATUS_MAP = {
   present:{label:'มาทำงาน',badge:'badge-present',emoji:'✅'},
   absent: {label:'ขาดงาน', badge:'badge-absent', emoji:'❌'},
@@ -1137,22 +1145,22 @@ const COLORS_BD=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2'];
 const AV_COLORS=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
 
 let employees = [
-  {id:1, code:'EMP001',firstName:'สมชาย',  lastName:'ใจดี',    position:'พนักงานผลิต',factory:'AVP1',shift:'Day',workcell:'WC-01',process:'Stamping'},
-  {id:2, code:'EMP002',firstName:'สมหญิง', lastName:'รักงาน',  position:'พนักงานผลิต',factory:'AVP1',shift:'Day',workcell:'WC-01',process:'Stamping'},
+  {id:1, code:'EMP001',firstName:'สมชาย',  lastName:'ใจดี',    position:'พนักงานผลิต',factory:'AVP1',shift:'DayO',workcell:'WC-01',process:'Stamping'},
+  {id:2, code:'EMP002',firstName:'สมหญิง', lastName:'รักงาน',  position:'พนักงานผลิต',factory:'AVP1',shift:'DayO',workcell:'WC-01',process:'Stamping'},
   {id:3, code:'EMP003',firstName:'วิชัย',  lastName:'มานะ',    position:'เทคนิเชียน', factory:'AVP2',shift:'A',  workcell:'WC-02',process:'Welding'},
   {id:4, code:'EMP004',firstName:'สุดา',   lastName:'ขยัน',    position:'พนักงานผลิต',factory:'AVP2',shift:'A',  workcell:'WC-02',process:'Welding'},
   {id:5, code:'EMP005',firstName:'ประเสริฐ',lastName:'ทำดี',   position:'พนักงานผลิต',factory:'AVP3',shift:'B',  workcell:'WC-01',process:'Assembly'},
   {id:6, code:'EMP006',firstName:'นภา',    lastName:'รุ่งเรือง',position:'เทคนิเชียน',factory:'AVP4',shift:'B',  workcell:'WC-01',process:'Painting'},
-  {id:7, code:'EMP007',firstName:'อำนาจ',  lastName:'เก่งงาน', position:'พนักงานผลิต',factory:'AVP4',shift:'Day',workcell:'WC-01',process:'Painting'},
+  {id:7, code:'EMP007',firstName:'อำนาจ',  lastName:'เก่งงาน', position:'พนักงานผลิต',factory:'AVP4',shift:'DayO',workcell:'WC-01',process:'Painting'},
   {id:8, code:'EMP008',firstName:'มณี',    lastName:'สว่าง',   position:'พนักงานผลิต',factory:'AVP5',shift:'C',  workcell:'WC-01',process:'QC'},
   {id:9, code:'EMP009',firstName:'ธีรชัย', lastName:'มุ่งมั่น',position:'เทคนิเชียน', factory:'Mold', shift:'C',  workcell:'WC-01',process:'Molding'},
   {id:10,code:'EMP010',firstName:'กานดา',  lastName:'ใสใจ',    position:'พนักงานผลิต',factory:'Mold', shift:'A',  workcell:'WC-02',process:'Molding'},
   {id:11,code:'EMP011',firstName:'บุญมี',  lastName:'ศรีสุข',  position:'พนักงานผลิต',factory:'Logistic',shift:'B',workcell:'WC-01',process:'Logistics'},
-  {id:12,code:'EMP012',firstName:'รัตนา',  lastName:'เจริญ',   position:'พนักงานผลิต',factory:'Logistic',shift:'Day',workcell:'WC-01',process:'Logistics'},
+  {id:12,code:'EMP012',firstName:'รัตนา',  lastName:'เจริญ',   position:'พนักงานผลิต',factory:'Logistic',shift:'DayO',workcell:'WC-01',process:'Logistics'},
 ];
 let nextId = 13;
 let attendanceData = {};  // {date: {empId: status}}
-let currentShift = 'Day';
+let currentShift = 'DayO';
 let trendChartObj=null, donutChartObj=null, rptLineObj=null, rptDonutObj=null, rptBarObj=null;
 
 // Excel import state
@@ -1162,7 +1170,7 @@ const SYSTEM_FIELDS = [
   {key:'fullName', label:'ชื่อ-นามสกุล (ช่องเดียว)', required:true},
   {key:'position', label:'ตำแหน่ง',                  required:false},
   {key:'factory',  label:'โรงงาน (AVP1-5/Mold/Logistic)', required:false},
-  {key:'shift',    label:'กะ (Day/A/B/C)',            required:false},
+  {key:'shift',    label:'กะ (DayO/DayF/A/B/C)',            required:false},
   {key:'workcell', label:'Workcell',                  required:false},
   {key:'process',  label:'กระบวนการ',                 required:false},
 ];
@@ -1421,7 +1429,7 @@ function renderTrend(dates, opts={}, mode='day'){
   const step=dates.length>maxTicks?Math.ceil(dates.length/maxTicks):1;
   const tickLabels=labels.map((l,i)=>i%step===0?l:'');
 
-  const shiftColors={Day:'#0891b2',A:'#2563eb',B:'#059669',C:'#d97706'};
+  const shiftColors={DayO:'#7c3aed',DayF:'#0891b2',A:'#2563eb',B:'#059669',C:'#d97706'};
   const datasets=[
     {label:'รวม',data:dates.map(d=>getDayStats(d,opts).rate),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.07)',borderWidth:2.5,pointRadius:dates.length>15?0:4,tension:.35,fill:true},
     ...ALL_SHIFTS.map(s=>({label:SHIFT_INFO[s].label,data:dates.map(d=>getDayStats(d,{...opts,shift:s}).rate),borderColor:shiftColors[s],borderDash:[5,3],borderWidth:1.5,pointRadius:0,tension:.35}))
@@ -1504,7 +1512,8 @@ function onSelChange(empId,date,sel){
 
 // ── ShiftConfig — กำหนดชั่วโมงต่อกะจาก Sheet ──
 let shiftConfig = {
-  Day:{hours:8,startTime:'08:00',endTime:'17:00'},
+  DayO:{hours:8,startTime:'08:00',endTime:'17:00'},
+  DayF:{hours:8,startTime:'08:00',endTime:'17:00'},
   A:  {hours:8,startTime:'06:00',endTime:'14:00'},
   B:  {hours:8,startTime:'14:00',endTime:'22:00'},
   C:  {hours:8,startTime:'22:00',endTime:'06:00'},
@@ -1563,7 +1572,9 @@ async function saveAll(){
       await saveAttendanceToSheet(date, e.id, sel.value);
     }
   }
-  showToast(`✅ บันทึกกะ ${currentShift} ลง Google Sheets สำเร็จ`);
+  // re-render เพื่อให้สถานะแสดงตรงกับที่บันทึก
+  renderAttGrid();
+  showToast(`✅ บันทึกกะ ${currentShift} สำเร็จ (${emps.length} คน)`);
 }
 
 // ══════════════════════════════════════════════
@@ -1616,7 +1627,7 @@ function openAddEmp(){
   document.getElementById('eEditId').value='';
   document.getElementById('eCode').value='EMP'+String(nextId).padStart(3,'0');
   ['eFullName','ePos','eWc','eProcess'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('eShift').value='Day';
+  document.getElementById('eShift').value='DayO';
   const defaultFactory=(currentUser&&currentUser.factory)?currentUser.factory:'AVP1';
   const factoryEl=document.getElementById('eFactory');
   factoryEl.value=defaultFactory;
@@ -1742,7 +1753,7 @@ function goStep3(){
       <td>${o.firstName} ${o.lastName}</td>
       <td>${o.position||'–'}</td>
       <td>${FACTORY_NAMES[o.factory]||o.factory||'AVP1'}</td>
-      <td>${o.shift||'Day'}</td>
+      <td>${o.shift||'DayO'}</td>
       <td><span class="wc-badge">${o.workcell||'–'}</span></td>
       <td>${o.process||'–'}</td>
     </tr>`).join('')}</tbody>
@@ -1752,7 +1763,7 @@ function goStep3(){
 function confirmImport(){
   let added=0,updated=0;
   const VALID_FACTORIES=Object.keys(FACTORY_NAMES);
-  const VALID_SHIFTS=['Day','A','B','C'];
+  const VALID_SHIFTS=['DayO','DayF','A','B','C'];
   const newRows=[];
 
   mappedImportData.forEach(o=>{
@@ -1760,8 +1771,8 @@ function confirmImport(){
     const factoryRaw=String(o.factory||'AVP1').trim();
     const FMAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'};
     const factory=FMAP[factoryRaw]||(VALID_FACTORIES.includes(factoryRaw)?factoryRaw:'AVP1');
-    const shiftRaw=String(o.shift||'Day').trim().toUpperCase();
-    const shift=VALID_SHIFTS.includes(shiftRaw)?shiftRaw:VALID_SHIFTS.includes(o.shift)?o.shift:'Day';
+    const shiftRaw=String(o.shift||'DayO').trim();
+    const shift=VALID_SHIFTS.includes(shiftRaw)?shiftRaw:'DayO';
     const empObj={
       code:o.code, firstName:o.firstName||'', lastName:o.lastName||'',
       position:o.position||'พนักงานผลิต', shift, factory,
@@ -1799,7 +1810,7 @@ function resetImport(){xlData=[];xlHeaders=[];mappedImportData=[];document.getEl
 function downloadTemplate(){
   const ws=XLSX.utils.aoa_to_sheet([
     ['รหัสพนักงาน','ชื่อ-นามสกุล','ตำแหน่ง','โรงงาน','กะ','Workcell','กระบวนการ'],
-    ['EMP001','สมชาย ใจดี','พนักงานผลิต','AVP1','Day','WC-01','Stamping'],
+    ['EMP001','สมชาย ใจดี','พนักงานผลิต','AVP1','DayO','WC-01','Stamping'],
     ['EMP002','สมหญิง รักงาน','เทคนิเชียน','AVP2','A','WC-02','Welding'],
     ['EMP003','วิชัย มานะ','พนักงานผลิต','Mold','B','WC-01','Molding'],
   ]);
@@ -1856,7 +1867,8 @@ function renderReport(){
     let p=0,a=0,l=0,lv=0,sk=0,bz=0;
     dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
     const workDates=dates.filter(d=>isWorkday(d));
-    const r=workDates.length?Math.round((p+l)/workDates.length*100):0;
+    const late2=workDates.filter(d=>getStatus(d,e.id)==='late').length;
+    const r=workDates.length?Math.round((p+late2)/workDates.length*100):0;
     return`<tr>
       <td style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</td>
       <td style="font-weight:700;">${e.firstName} ${e.lastName}</td>
@@ -2020,7 +2032,7 @@ async function loadEmployeesFromSheet(){
 
     const FACTORY_MAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'};
     const VALID_FACTORIES=Object.keys(FACTORY_NAMES);
-    const VALID_SHIFTS=['Day','A','B','C'];
+    const VALID_SHIFTS=['DayO','DayF','A','B','C'];
 
     const loaded=data
       .filter(e=>String(e.active||'true').toUpperCase()!=='FALSE'&&e.code)
@@ -2049,9 +2061,12 @@ async function loadEmployeesFromSheet(){
         const factory=FACTORY_MAP[rawFactory]||(VALID_FACTORIES.includes(rawFactory)?rawFactory:'AVP1');
 
         // ── Shift: รองรับ Day(I), Day(II), กะA, Shift A ฯลฯ ──
-        const rawShift=String(e.shift||'Day').trim();
-        let shift='Day';
-        if(/^Day/i.test(rawShift)) shift='Day';
+        const rawShift=String(e.shift||'DayO').trim();
+        let shift='DayO';
+        if(/^Day/i.test(rawShift)){
+          if(rawShift.toUpperCase().includes('II')||rawShift.toUpperCase().includes('FACTORY')) shift='DayF';
+          else shift='DayO';
+        }
         else if(/^A$/i.test(rawShift)||/กะ\s*A/i.test(rawShift)||/Shift\s*A/i.test(rawShift)) shift='A';
         else if(/^B$/i.test(rawShift)||/กะ\s*B/i.test(rawShift)||/Shift\s*B/i.test(rawShift)) shift='B';
         else if(/^C$/i.test(rawShift)||/กะ\s*C/i.test(rawShift)||/Shift\s*C/i.test(rawShift)) shift='C';
@@ -2574,7 +2589,7 @@ function downloadReport(type){
     emps.forEach(e=>{
       let p=0,a=0,l=0,lv=0,sk=0;
       let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-      const r=dates.length?(dates.length?Math.round((p+l)/dates.length*100):0):0;
+      const r=dates.length?Math.round((p+l)/dates.length*100):0;
       rows.push([e.code,e.firstName,e.lastName,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',e.shift,p,l,a,lv,sk,r+'%']);
     });
     const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
@@ -2596,7 +2611,7 @@ function downloadReport(type){
     emps.forEach(e=>{
       let p=0,a=0,l=0,lv=0,sk=0;
       let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
-      const r=dates.length?(dates.length?Math.round((p+l)/dates.length*100):0):0;
+      const r=dates.length?Math.round((p+l)/dates.length*100):0;
       ws_data.push([e.code,`${e.firstName} ${e.lastName}`,FACTORY_NAMES[e.factory]||e.factory,e.workcell||'',e.process||'',`กะ ${e.shift}`,p,l,a,lv,sk,dates.length,r]);
     });
     // Summary row
@@ -2652,7 +2667,8 @@ function printReport(){
     let p=0,a=0,l=0,lv=0,sk=0;
     let bz=0;dates.forEach(d=>{const s=getStatus(d,e.id);if(s==='present')p++;else if(s==='absent')a++;else if(s==='late')l++;else if(s==='leave')lv++;else if(s==='business')bz++;else sk++;});
     const workDates=dates.filter(d=>isWorkday(d));
-    const r=workDates.length?Math.round((p+l)/workDates.length*100):0;
+    const late2=workDates.filter(d=>getStatus(d,e.id)==='late').length;
+    const r=workDates.length?Math.round((p+late2)/workDates.length*100):0;
     rows+=`<tr style="background:${i%2?'#f7f9fc':'#fff'}">
       <td>${e.code}</td><td>${e.firstName} ${e.lastName}</td>
       <td>${FACTORY_NAMES[e.factory]||e.factory}</td><td>${e.workcell||'–'}</td><td>กะ ${e.shift}</td>
