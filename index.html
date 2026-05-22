@@ -1972,8 +1972,10 @@ async function loadUsersFromSheet(){
 async function loadEmployeesFromSheet(){
   try{
     const rows=await gsReadAPI('Employees!A:J');
+    console.log('📊 Raw rows from Sheet:', rows.length, 'rows');
     const data=parseRows(rows);
-    if(data.length===0) return false;
+    console.log('📊 Parsed data:', data.length, 'employees');
+    if(data.length===0){console.warn('⚠️ No data parsed - check Sheet headers');return false;}
 
     const FACTORY_MAP={'F1':'AVP1','F2':'AVP2','F3':'AVP3'};
     const VALID_FACTORIES=Object.keys(FACTORY_NAMES);
@@ -2037,7 +2039,7 @@ async function loadEmployeesFromSheet(){
     populateWcSelects();
     return true;
   }catch(err){
-    console.warn('Sheet employees load failed:', err);
+    console.error('❌ Sheet employees load failed:', err.message||err);
     return false;
   }
 }
