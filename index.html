@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -1185,6 +1186,7 @@ function dateRangeDates(from,to){
   return dates;
 }
 function getStatus(date,empId){return(attendanceData[date]||{})[empId]||'present';}
+function allWorkcells(){return [...new Set(employees.map(e=>e.workcell).filter(Boolean))].sort();}
 function allPositions(){return [...new Set(employees.map(e=>e.position).filter(Boolean))].sort();}
 function filteredEmps({factory='',shift='',workcell='',position=''}={}){
   return employees.filter(e=>
