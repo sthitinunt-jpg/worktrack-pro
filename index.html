@@ -971,7 +971,11 @@ select.form-control{cursor:pointer;}
   <div class="page" id="page-holiday">
     <div class="sec-header">
       <div class="section-title">ปฏิทินวันทำงาน / วันหยุด</div>
-      <div id="holidayAdminControls" style="display:none;gap:8px;flex-wrap:wrap;">
+      <div id="holidayAdminControls" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;">
+        <div style="display:flex;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;">
+          <button class="btn btn-sm" id="calTabOffice" onclick="setCalMode('office')" style="border-radius:var(--radius-sm);background:var(--accent);color:#fff;">🏢 Day Office</button>
+          <button class="btn btn-sm" id="calTabFactory" onclick="setCalMode('factory')" style="border-radius:var(--radius-sm);background:transparent;color:var(--text2);">🏭 Day Factory</button>
+        </div>
         <button class="btn btn-ghost btn-sm" onclick="setAllWorkdays()">✅ ตั้งทุกวันเป็นวันทำงาน</button>
         <button class="btn btn-primary btn-sm" onclick="openHolidayModal()">+ เพิ่มวันหยุด</button>
       </div>
@@ -1219,6 +1223,18 @@ function getDayStats(date,opts={}){
   s.rate=s.total?Math.round((s.present+s.late)/s.total*100):0;
   return s;
 }
+// คำนวณอัตราเฉลี่ยสำหรับช่วงวัน โดยข้ามวันหยุดตาม shift
+function calcRate(dates, opts={}){
+  const shift=opts.shift||'';
+  const useFactory=shift&&shift!=='DayO';
+  const workDays=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
+  let tp=0,tt=0;
+  workDays.forEach(d=>{
+    const s=getDayStats(d,opts);
+    if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+  });
+  return tt?Math.round(tp/tt*100):0;
+}
 function initData(){
   const now=new Date();
   // init 3 months back for demo richness
@@ -1334,14 +1350,7 @@ function renderDashboard(){
   // aggregate stats across selected dates
   let agg={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:0};
   dates.forEach(d=>{const s=getDayStats(d,opts);['present','absent','late','leave','sick','business','total'].forEach(k=>agg[k]+=s[k]);});
-  const aggRate=(()=>{
-    let totalPresent=0, totalEmps=0;
-    dates.filter(d=>isWorkday(d)).forEach(d=>{
-      const s=getDayStats(d,opts);
-      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
-    });
-    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
-  })();
+  const aggRate=calcRate(dates, opts);
 
   // use refDate for "today's" single-day cards
   const dayS=getDayStats(refDate,opts);
@@ -1353,14 +1362,7 @@ function renderDashboard(){
 
   // week avg for stat card
   const wd=weekDates();
-  const avgRate=(()=>{
-    let totalPresent=0, totalEmps=0;
-    wd.filter(d=>isWorkday(d)).forEach(d=>{
-      const s=getDayStats(d,opts);
-      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
-    });
-    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
-  })();
+  const avgRate=calcRate(wd, opts);
   const emps=filteredEmps(opts);
 
   document.getElementById('statGrid').innerHTML=`
@@ -1463,9 +1465,12 @@ function renderAttGrid(){
   if(!attendanceData[date])attendanceData[date]={};
   const emps=filteredEmps({factory:fac,workcell:wc,shift:currentShift});
 
-  // default ทุกคนเป็น present ถ้ายังไม่มีข้อมูล
+  // default ทุกคนเป็น present ถ้ายังไม่มีข้อมูล (เฉพาะวันนี้)
+  const isToday = date===today();
   emps.forEach(e=>{
-    if(attendanceData[date][e.id]==null) attendanceData[date][e.id]='present';
+    if(attendanceData[date][e.id]==null){
+      attendanceData[date][e.id]='present';
+    }
   });
 
   document.getElementById('attGrid').innerHTML=emps.length===0
@@ -1593,10 +1598,11 @@ function renderEmpTable(){
   document.getElementById('empCount').textContent=emps.length;
   const dates=monthDates();
   document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
-    const workDates=dates.filter(d=>isWorkday(d));
+    const useFactory=e.shift&&e.shift!=='DayO';
+    const workDates=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
     const p=workDates.filter(d=>getStatus(d,e.id)==='present').length;
-    const late=workDates.filter(d=>getStatus(d,e.id)==='late').length;
-    const r=workDates.length?Math.round((p+late)/workDates.length*100):0;
+    const late2=workDates.filter(d=>getStatus(d,e.id)==='late').length;
+    const r=workDates.length?Math.round((p+late2)/workDates.length*100):0;
     return`<tr>
       <td style="color:var(--text3);">${i+1}</td>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
@@ -1832,14 +1838,7 @@ function renderReport(){
   const emps=filteredEmps(opts);
   let tot={present:0,absent:0,late:0,leave:0,sick:0,total:0};
   dates.forEach(d=>{const s=getDayStats(d,opts);Object.keys(tot).forEach(k=>tot[k]+=(s[k]||0));});
-  const rate=(()=>{
-    let totalPresent=0, totalEmps=0;
-    dates.filter(d=>isWorkday(d)).forEach(d=>{
-      const s=getDayStats(d,{factory:fac,workcell:wc,shift:sh});
-      if(s.total>0){ totalPresent+=s.present+s.late; totalEmps+=s.total; }
-    });
-    return totalEmps?Math.round(totalPresent/totalEmps*100):0;
-  })();
+  const rate=calcRate(dates,{factory:fac,workcell:wc,shift:sh});
   document.getElementById('rptStats').innerHTML=`
     <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-label">พนักงาน</div><div class="stat-value">${emps.length}</div><div class="stat-sub">คน</div></div>
     <div class="stat-card green"><div class="stat-icon">📈</div><div class="stat-label">อัตราเฉลี่ย</div><div class="stat-value">${rate}%</div><div class="stat-sub">การมาทำงาน</div></div>
@@ -2239,15 +2238,18 @@ async function refreshData(){
     await loadShiftConfig();
     initData();
     populateWcSelects();
-    // re-render current page
+    // re-render current page (ไม่ logout)
     const activePage=document.querySelector('.page.active');
     if(activePage){
       const id=activePage.id.replace('page-','');
       if(id==='dashboard')renderDashboard();
       else if(id==='employees')renderEmpTable();
-      else if(id==='attendance')renderAttPage();
+      else if(id==='attendance'){renderAttPage();}
       else if(id==='report')renderReport();
+      else if(id==='holiday')renderCalendar();
     }
+    // อัปเดต topbar
+    applyRoleUI();
     showToast('✅ โหลดข้อมูลใหม่สำเร็จ');
   }catch(e){
     showToast('❌ โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -2266,18 +2268,37 @@ function fillLogin(u,p){
 // ══════════════════════════════════════════════
 //  HOLIDAY / WORKDAY CALENDAR
 // ══════════════════════════════════════════════
-let dayStatus = {};
+let dayStatus = {};        // Office calendar (DayO)
+let factoryStatus = {};    // Factory calendar (DayF/A/B/C) — ใช้ isWeekend default เหมือนกัน
 let holidays  = [];
 let calYear   = new Date().getFullYear();
 let calMonth  = new Date().getMonth();
+let calMode   = 'office'; // 'office' | 'factory'
 
 function isWeekend(ds){ const d=new Date(ds); return d.getDay()===0||d.getDay()===6; }
-function isHoliday(ds){
+
+// isHoliday สำหรับ Office (DayO)
+function isOfficeHoliday(ds){
   if(dayStatus[ds]==='holiday') return true;
   if(dayStatus[ds]==='work')    return false;
   return isWeekend(ds);
 }
+// isHoliday สำหรับ Factory (DayF/A/B/C)
+function isFactoryHoliday(ds){
+  if(factoryStatus[ds]==='holiday') return true;
+  if(factoryStatus[ds]==='work')    return false;
+  return isWeekend(ds);
+}
+// isHoliday รวม — ใช้ตาม shift
+function isHolidayForShift(ds, shift){
+  if(!shift||shift==='DayO') return isOfficeHoliday(ds);
+  return isFactoryHoliday(ds);
+}
+// isHoliday default (ใช้ทั่วไป — office)
+function isHoliday(ds){ return isOfficeHoliday(ds); }
 function isWorkday(ds){ return !isHoliday(ds); }
+// isWorkday สำหรับ Factory
+function isFactoryWorkday(ds){ return !isFactoryHoliday(ds); }
 
 function renderCalendar(){
   // แสดง/ซ่อนปุ่ม admin
@@ -2297,7 +2318,7 @@ function renderCalendar(){
   for(let i=0;i<firstDay;i++) html+=`<div class="cal-day empty"></div>`;
   for(let d=1;d<=daysInMonth;d++){
     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const hol=isHoliday(ds);
+    const hol=isActiveModeHoliday(ds);
     const cursor=canEdit?'cursor:pointer;':'cursor:default;';
     const title=canEdit?(hol?'คลิกเพื่อเปลี่ยนเป็นวันทำงาน':'คลิกเพื่อเปลี่ยนเป็นวันหยุด'):(hol?'วันหยุด':'วันทำงาน');
     html+=`<div class="cal-day ${hol?'holiday':'workday'}${ds===today()?' today':''}" onclick="toggleDay('${ds}')" title="${title}" style="${cursor}">
@@ -2316,27 +2337,43 @@ function renderCalendar(){
   renderHolidaySummary();
 }
 
+function setCalMode(mode){
+  calMode=mode;
+  const btnO=document.getElementById('calTabOffice');
+  const btnF=document.getElementById('calTabFactory');
+  if(btnO&&btnF){
+    btnO.style.background=mode==='office'?'var(--accent)':'transparent';
+    btnO.style.color=mode==='office'?'#fff':'var(--text2)';
+    btnF.style.background=mode==='factory'?'var(--accent)':'transparent';
+    btnF.style.color=mode==='factory'?'#fff':'var(--text2)';
+  }
+  renderCalendar();
+}
+function getActiveStatus(ds){ return calMode==='office'?dayStatus[ds]:factoryStatus[ds]; }
+function setActiveStatus(ds,val){ if(calMode==='office') dayStatus[ds]=val; else factoryStatus[ds]=val; }
+function isActiveModeHoliday(ds){ return calMode==='office'?isOfficeHoliday(ds):isFactoryHoliday(ds); }
 function isAdminRole(){ return currentUser&&(currentUser.role==='admin'||currentUser.role==='manager'); }
 
 function toggleDay(ds){
-  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin เท่านั้นที่แก้ไขปฏิทินได้');return;}
-  const hol=isHoliday(ds);
-  dayStatus[ds]=hol?'work':'holiday';
+  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin/Manager เท่านั้นที่แก้ไขปฏิทินได้');return;}
+  const hol=isActiveModeHoliday(ds);
+  setActiveStatus(ds, hol?'work':'holiday');
   renderCalendar();
-  showToast(hol?`✅ ${fmtTH(ds)} — วันทำงาน`:`🔴 ${fmtTH(ds)} — วันหยุด`);
+  const modeLabel=calMode==='office'?'Office':'Factory';
+  showToast(hol?`✅ ${fmtTH(ds)} [${modeLabel}] — วันทำงาน`:`🔴 ${fmtTH(ds)} [${modeLabel}] — วันหยุด`);
 }
 function calPrevMonth(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
 function calNextMonth(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
 
 function setAllWorkdays(){
-  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin เท่านั้นที่แก้ไขได้');return;}
+  if(!isAdminRole()){showToast('🚫 เฉพาะ Admin/Manager เท่านั้นที่แก้ไขได้');return;}
   const days=new Date(calYear,calMonth+1,0).getDate();
   for(let d=1;d<=days;d++){
     const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    dayStatus[ds]='work';
+    setActiveStatus(ds,'work');
   }
   renderCalendar();
-  showToast('✅ ตั้งทุกวันในเดือนนี้เป็นวันทำงาน');
+  showToast(`✅ ตั้งทุกวัน [${calMode==='office'?'Office':'Factory'}] เป็นวันทำงาน`);
 }
 
 function openHolidayModal(){
@@ -2357,7 +2394,7 @@ function saveHoliday(){
   const cur=new Date(from); const end=new Date(to);
   while(cur<=end){
     const ds=cur.toISOString().split('T')[0];
-    dayStatus[ds]=type==='work'?'work':'holiday';
+    setActiveStatus(ds, type==='work'?'work':'holiday');
     cur.setDate(cur.getDate()+1);
   }
   holidays.push({from,to,name,type});
@@ -2367,7 +2404,8 @@ function saveHoliday(){
 }
 
 function renderHolidayList(){
-  const allHol=Object.entries(dayStatus).filter(([,s])=>s==='holiday').sort(([a],[b])=>a.localeCompare(b));
+  const activeMap=calMode==='office'?dayStatus:factoryStatus;
+  const allHol=Object.entries(activeMap).filter(([,s])=>s==='holiday').sort(([a],[b])=>a.localeCompare(b));
   document.getElementById('holidayCount').textContent=`${allHol.length} วัน`;
   const typeLabel={public:'นักขัตฤกษ์',company:'บริษัท',work:'พิเศษ'};
   const getH=(d)=>holidays.find(h=>d>=h.from&&d<=h.to);
