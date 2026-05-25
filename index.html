@@ -1199,21 +1199,42 @@ function dateRangeDates(from,to){
 function getStatus(date,empId){return(attendanceData[date]||{})[empId]||'present';}
 function allWorkcells(){return [...new Set(employees.map(e=>e.workcell).filter(Boolean))].sort();}
 function allPositions(){return [...new Set(employees.map(e=>e.position).filter(Boolean))].sort();}
-function filteredEmps({factory='',shift='',workcell='',position=''}={}){
-  return employees.filter(e=>
-    (factory?e.factory===factory:true)&&
-    (shift?e.shift===shift:true)&&
-    (workcell?e.workcell===workcell:true)&&
-    (position?e.position===position:true)
-  );
+
+// ตรวจว่าเป็น Operator (P หรือ T)
+function isOperator(pos){
+  const p=String(pos||'').toUpperCase();
+  return p.includes('OPERATOR');
 }
+
+function filteredEmps({factory='',shift='',workcell='',position=''}={}){
+  return employees.filter(e=>{
+    if(factory&&e.factory!==factory) return false;
+    if(shift&&e.shift!==shift) return false;
+    if(workcell&&e.workcell!==workcell) return false;
+    if(position){
+      // special group: Operator [P+T] = รวม Operator ทุกประเภท
+      if(position==='__OPERATOR_ALL__') return isOperator(e.position);
+      return e.position===position;
+    }
+    return true;
+  });
+}
+
 function populatePositionSelect(){
   const positions=allPositions();
+  // ตรวจว่ามี Operator หลายประเภทไหม
+  const hasMultipleOps=positions.filter(p=>isOperator(p)).length>1;
   ['db-position'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;
-    el.innerHTML='<option value="">ทั้งหมด</option>'+positions.map(p=>`<option value="${p}">${p}</option>`).join('');
-    if(cur)el.value=cur;
+    let opts='<option value="">ทั้งหมด</option>';
+    // เพิ่ม Operator [P+T] ถ้ามี Operator มากกว่า 1 ประเภท
+    if(hasMultipleOps){
+      opts+=`<option value="__OPERATOR_ALL__">⚙️ Operator [P+T] (รวม)</option>`;
+    }
+    opts+=positions.map(p=>`<option value="${p}">${p}</option>`).join('');
+    el.innerHTML=opts;
+    if(cur) el.value=cur;
   });
 }
 function getDayStats(date,opts={}){
