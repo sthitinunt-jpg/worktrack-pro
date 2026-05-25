@@ -1223,11 +1223,33 @@ function getDayStats(date,opts={}){
   s.rate=s.total?Math.round((s.present+s.late)/s.total*100):0;
   return s;
 }
+
 // คำนวณอัตราเฉลี่ยสำหรับช่วงวัน โดยข้ามวันหยุดตาม shift
 function calcRate(dates, opts={}){
   const shift=opts.shift||'';
-  const useFactory=shift&&shift!=='DayO';
-  const workDays=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
+  // ถ้าไม่ระบุ shift = รวมทุก shift → แยกคำนวณตามปฏิทิน
+  if(!shift){
+    // แยกพนักงาน Office กับ Factory
+    let tp=0, tt=0;
+    dates.forEach(d=>{
+      // Office (DayO)
+      if(isWorkday(d)){
+        const s=getDayStats(d,{...opts,shift:'DayO'});
+        if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+      }
+      // Factory (DayF, A, B, C)
+      if(isFactoryWorkday(d)){
+        ['DayF','A','B','C'].forEach(sh=>{
+          const s=getDayStats(d,{...opts,shift:sh});
+          if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+        });
+      }
+    });
+    return tt?Math.round(tp/tt*100):0;
+  }
+  // ระบุ shift → ใช้ปฏิทินที่ตรงกัน
+  const useOffice=shift==='DayO';
+  const workDays=dates.filter(d=>useOffice?isWorkday(d):isFactoryWorkday(d));
   let tp=0,tt=0;
   workDays.forEach(d=>{
     const s=getDayStats(d,opts);
@@ -1515,7 +1537,55 @@ function onSelChange(empId,date,sel){
   }
 }
 
-// ── ShiftConfig — กำหนดชั่วโมงต่อกะจาก Sheet ──
+// ── บันทึกปฏิทินวันหยุดลง Sheet ──
+async function saveHolidaysToSheet(){
+  try{
+    const rows=[['date','type','name','mode']]; // header
+    // Office holidays
+    Object.entries(dayStatus).forEach(([d,s])=>{
+      if(s==='holiday') rows.push([d,'holiday','',  'office']);
+      if(s==='work')    rows.push([d,'work',   '',  'office']);
+    });
+    // Factory holidays
+    Object.entries(factoryStatus).forEach(([d,s])=>{
+      if(s==='holiday') rows.push([d,'holiday','',  'factory']);
+      if(s==='work')    rows.push([d,'work',   '',  'factory']);
+    });
+    // Named holidays
+    holidays.forEach(h=>{
+      rows.push([h.from+'~'+h.to, h.type, h.name, h.mode||'both']);
+    });
+    await gsScript({action:'clear', tab:'Holidays'});
+    if(rows.length>1) await gsScript({action:'append', tab:'Holidays', values:rows});
+  }catch(e){ console.warn('Save holidays failed:', e); }
+}
+
+// ── โหลดปฏิทินวันหยุดจาก Sheet ──
+async function loadHolidaysFromSheet(){
+  try{
+    const rows=await gsReadAPI('Holidays!A:D');
+    if(!rows||rows.length<2) return;
+    const data=parseRows(rows);
+    dayStatus={};
+    factoryStatus={};
+    holidays=[];
+    data.forEach(r=>{
+      const dateVal=String(r.date||'').trim();
+      const mode=String(r.mode||'both').trim();
+      const type=String(r.type||'holiday').trim();
+      const name=String(r.name||'').trim();
+      if(dateVal.includes('~')){
+        // named holiday range
+        const [from,to]=dateVal.split('~');
+        holidays.push({from,to,name,type,mode});
+      } else if(dateVal){
+        if(mode==='office'||mode==='both') dayStatus[dateVal]=type;
+        if(mode==='factory'||mode==='both') factoryStatus[dateVal]=type;
+      }
+    });
+    console.log('✅ โหลดปฏิทินวันหยุดสำเร็จ');
+  }catch(e){ console.warn('Load holidays failed:', e); }
+}
 let shiftConfig = {
   DayO:{hours:8,startTime:'08:00',endTime:'17:00'},
   DayF:{hours:8,startTime:'08:00',endTime:'17:00'},
@@ -2236,6 +2306,7 @@ async function refreshData(){
     await loadAttendanceFromSheet(from,null);
     // reload shift config
     await loadShiftConfig();
+    await loadHolidaysFromSheet();
     initData();
     populateWcSelects();
     // re-render current page (ไม่ logout)
@@ -2359,6 +2430,7 @@ function toggleDay(ds){
   const hol=isActiveModeHoliday(ds);
   setActiveStatus(ds, hol?'work':'holiday');
   renderCalendar();
+  saveHolidaysToSheet(); // sync ไป Sheet
   const modeLabel=calMode==='office'?'Office':'Factory';
   showToast(hol?`✅ ${fmtTH(ds)} [${modeLabel}] — วันทำงาน`:`🔴 ${fmtTH(ds)} [${modeLabel}] — วันหยุด`);
 }
@@ -2397,9 +2469,10 @@ function saveHoliday(){
     setActiveStatus(ds, type==='work'?'work':'holiday');
     cur.setDate(cur.getDate()+1);
   }
-  holidays.push({from,to,name,type});
+  holidays.push({from,to,name,type,mode:calMode});
   closeModal('holidayModal');
   renderCalendar();
+  saveHolidaysToSheet(); // sync ไป Sheet
   showToast(`✅ บันทึก "${name}" สำเร็จ`);
 }
 
@@ -2474,6 +2547,7 @@ async function doLogin(){
     const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
     await loadAttendanceFromSheet(from,null);
     await loadShiftConfig(); // โหลดชั่วโมงต่อกะจาก Sheet
+    await loadHolidaysFromSheet(); // โหลดปฏิทินวันหยุดจาก Sheet
   }catch(e){ console.warn('Data load error:', e); }
   initData();
 
@@ -2537,6 +2611,7 @@ async function restoreSession(){
       const from=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
       await loadAttendanceFromSheet(from,null);
       await loadShiftConfig();
+      await loadHolidaysFromSheet();
     }catch(e){ console.warn('Session restore data error:', e); }
     initData();
     document.getElementById('loginScreen').classList.add('hidden');
