@@ -2375,6 +2375,15 @@ function renderCalendar(){
   // แสดง/ซ่อนปุ่ม admin
   const ctrl=document.getElementById('holidayAdminControls');
   if(ctrl) ctrl.style.display=isAdminRole()?'flex':'none';
+  // sync tab button styles
+  const btnO=document.getElementById('calTabOffice');
+  const btnF=document.getElementById('calTabFactory');
+  if(btnO&&btnF){
+    btnO.style.background=calMode==='office'?'var(--accent)':'transparent';
+    btnO.style.color=calMode==='office'?'#fff':'var(--text2)';
+    btnF.style.background=calMode==='factory'?'var(--accent)':'transparent';
+    btnF.style.color=calMode==='factory'?'#fff':'var(--text2)';
+  }
 
   const DAYS=['อา','จ','อ','พ','พฤ','ศ','ส'];
   document.getElementById('calDaysHeader').innerHTML=DAYS.map(d=>`<div class="cal-header-day">${d}</div>`).join('');
@@ -2382,7 +2391,8 @@ function renderCalendar(){
   const firstDay=new Date(y,m,1).getDay();
   const daysInMonth=new Date(y,m+1,0).getDate();
   const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-  document.getElementById('calMonthTitle').textContent=`${thMonths[m]} ${y+543}`;
+  const modeLabel=calMode==='office'?'🏢 Day Office':'🏭 Day Factory';
+  document.getElementById('calMonthTitle').textContent=`${thMonths[m]} ${y+543} — ${modeLabel}`;
 
   const canEdit=isAdminRole();
   let html='';
@@ -2390,15 +2400,17 @@ function renderCalendar(){
   for(let d=1;d<=daysInMonth;d++){
     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const hol=isActiveModeHoliday(ds);
+    // แสดงสถานะที่ override vs default
+    const isOverride = calMode==='office'?dayStatus[ds]!==undefined:factoryStatus[ds]!==undefined;
     const cursor=canEdit?'cursor:pointer;':'cursor:default;';
     const title=canEdit?(hol?'คลิกเพื่อเปลี่ยนเป็นวันทำงาน':'คลิกเพื่อเปลี่ยนเป็นวันหยุด'):(hol?'วันหยุด':'วันทำงาน');
-    html+=`<div class="cal-day ${hol?'holiday':'workday'}${ds===today()?' today':''}" onclick="toggleDay('${ds}')" title="${title}" style="${cursor}">
+    const borderStyle=isOverride?'border-width:2.5px;':'';
+    html+=`<div class="cal-day ${hol?'holiday':'workday'}${ds===today()?' today':''}" onclick="toggleDay('${ds}')" title="${title}" style="${cursor}${borderStyle}">
       <span>${d}</span><span class="cal-label">${hol?'หยุด':'ทำงาน'}</span>
     </div>`;
   }
   document.getElementById('calDays').innerHTML=html;
 
-  // คำแนะนำ
   const calViewNote=document.getElementById('calViewNote');
   if(calViewNote) calViewNote.style.display=canEdit?'none':'block';
   const tips=document.querySelectorAll('#page-holiday .cal-tip');
@@ -2418,7 +2430,8 @@ function setCalMode(mode){
     btnF.style.background=mode==='factory'?'var(--accent)':'transparent';
     btnF.style.color=mode==='factory'?'#fff':'var(--text2)';
   }
-  renderCalendar();
+  // ไม่เรียก renderCalendar ที่นี่ถ้ามาจาก renderCalendar แล้ว
+  if(mode!==undefined&&document.getElementById('calDays'))renderCalendar();
 }
 function getActiveStatus(ds){ return calMode==='office'?dayStatus[ds]:factoryStatus[ds]; }
 function setActiveStatus(ds,val){ if(calMode==='office') dayStatus[ds]=val; else factoryStatus[ds]=val; }
@@ -2495,14 +2508,21 @@ function renderHolidayList(){
 
 function renderHolidaySummary(){
   const dates=monthDates(calYear,calMonth);
-  const wd=dates.filter(d=>isWorkday(d)).length;
-  const hd=dates.filter(d=>isHoliday(d)).length;
-  const we=dates.filter(d=>isWeekend(d)&&dayStatus[d]!=='work').length;
+  const isHolFn = calMode==='office' ? isOfficeHoliday : isFactoryHoliday;
+  const wd=dates.filter(d=>!isHolFn(d)).length;
+  const hd=dates.filter(d=>isHolFn(d)).length;
+  const we=dates.filter(d=>isWeekend(d)&&(calMode==='office'?dayStatus[d]!=='work':factoryStatus[d]!=='work')).length;
+  const overrides=Object.keys(calMode==='office'?dayStatus:factoryStatus).filter(d=>{
+    const y=calYear,m=calMonth;
+    const [dy,dm]=d.split('-').map(Number);
+    return dy===y&&(dm-1)===m;
+  }).length;
   document.getElementById('holidaySummary').innerHTML=`
-    <div class="stat-card blue"><div class="stat-icon">📅</div><div class="stat-label">วันทั้งหมด</div><div class="stat-value">${dates.length}</div><div class="stat-sub">วันในเดือนนี้</div></div>
-    <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">วันทำงาน</div><div class="stat-value">${wd}</div><div class="stat-sub">วัน</div></div>
+    <div class="stat-card blue"><div class="stat-icon">📅</div><div class="stat-label">วันทั้งหมด</div><div class="stat-value">${dates.length}</div><div class="stat-sub">วัน</div></div>
+    <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">วันทำงาน</div><div class="stat-value">${wd}</div><div class="stat-sub">${calMode==='office'?'Office':'Factory'}</div></div>
     <div class="stat-card red"><div class="stat-icon">🔴</div><div class="stat-label">วันหยุดรวม</div><div class="stat-value">${hd}</div><div class="stat-sub">วัน</div></div>
     <div class="stat-card yellow"><div class="stat-icon">🏖️</div><div class="stat-label">เสาร์-อาทิตย์</div><div class="stat-value">${we}</div><div class="stat-sub">วัน</div></div>
+    <div class="stat-card orange"><div class="stat-icon">✏️</div><div class="stat-label">ปรับเปลี่ยน</div><div class="stat-value">${overrides}</div><div class="stat-sub">วันที่กำหนดพิเศษ</div></div>
   `;
 }
 
