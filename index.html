@@ -730,8 +730,9 @@ select.form-control{cursor:pointer;}
           <div class="section-title">บันทึกการมาทำงาน</div>
           <div style="font-size:12px;color:var(--text3);" id="attInfo"></div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="date" class="form-control" id="attDate" style="width:auto;" onchange="renderAttPage()">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="date" class="form-control" id="attDate" style="width:auto;" onchange="onAttDateChange()">
+          <span id="attDateNote" style="font-size:12px;display:none;"></span>
           <button class="btn btn-success btn-sm" onclick="saveAll()">💾 บันทึกทั้งหมด</button>
         </div>
       </div>
@@ -1241,42 +1242,47 @@ function getDayStats(date,opts={}){
   const emps=filteredEmps(opts);
   const s={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:emps.length};
   emps.forEach(e=>{const st=getStatus(date,e.id);s[st]=(s[st]||0)+1;});
-  s.rate=s.total?Math.round((s.present+s.late)/s.total*100):0;
+  // อัตราการมาทำงาน = present เท่านั้น (ไม่รวมมาสาย)
+  s.rate=s.total?Math.round(s.present/s.total*100):0;
   return s;
 }
 
-// คำนวณอัตราเฉลี่ยสำหรับช่วงวัน โดยข้ามวันหยุดตาม shift
+// คำนวณอัตราสะสม (สัปดาห์/เดือน/ช่วงวัน)
+// = ผลรวม present ทุกวัน / ผลรวม (จำนวนพนักงาน × วันทำงาน) × 100
 function calcRate(dates, opts={}){
   const shift=opts.shift||'';
-  // ถ้าไม่ระบุ shift = รวมทุก shift → แยกคำนวณตามปฏิทิน
+  const useOffice=!shift||shift==='DayO';
+  const useFactory=shift&&shift!=='DayO';
+
   if(!shift){
-    // แยกพนักงาน Office กับ Factory
-    let tp=0, tt=0;
+    // ไม่ระบุ shift → รวมทุก shift แยกตามปฏิทิน
+    let sumPresent=0, sumTotal=0;
     dates.forEach(d=>{
-      // Office (DayO)
+      // Office workdays
       if(isWorkday(d)){
         const s=getDayStats(d,{...opts,shift:'DayO'});
-        if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+        sumPresent+=s.present; sumTotal+=s.total;
       }
-      // Factory (DayF, A, B, C)
+      // Factory workdays
       if(isFactoryWorkday(d)){
         ['DayF','A','B','C'].forEach(sh=>{
           const s=getDayStats(d,{...opts,shift:sh});
-          if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+          sumPresent+=s.present; sumTotal+=s.total;
         });
       }
     });
-    return tt?Math.round(tp/tt*100):0;
+    return sumTotal?Math.round(sumPresent/sumTotal*100):0;
   }
+
   // ระบุ shift → ใช้ปฏิทินที่ตรงกัน
-  const useOffice=shift==='DayO';
-  const workDays=dates.filter(d=>useOffice?isWorkday(d):isFactoryWorkday(d));
-  let tp=0,tt=0;
+  const workDays=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
+  let sumPresent=0, sumTotal=0;
   workDays.forEach(d=>{
     const s=getDayStats(d,opts);
-    if(s.total>0){tp+=s.present+s.late;tt+=s.total;}
+    sumPresent+=s.present;
+    sumTotal+=s.total;
   });
-  return tt?Math.round(tp/tt*100):0;
+  return sumTotal?Math.round(sumPresent/sumTotal*100):0;
 }
 function initData(){
   const now=new Date();
@@ -1496,9 +1502,37 @@ function switchTrend(range,btn){
 // ══════════════════════════════════════════════
 //  ATTENDANCE
 // ══════════════════════════════════════════════
+function onAttDateChange(){
+  const dp=document.getElementById('attDate');
+  const note=document.getElementById('attDateNote');
+  const isAdmin=currentUser&&currentUser.role==='admin';
+  const selected=dp.value;
+  const todayStr=today();
+  if(!isAdmin&&selected&&selected!==todayStr){
+    dp.value=todayStr;
+    showToast('🚫 เฉพาะ Admin เท่านั้นที่แก้ข้อมูลย้อนหลังได้');
+    if(note){note.textContent='';note.style.display='none';}
+  } else if(isAdmin&&selected&&selected!==todayStr){
+    if(note){
+      note.textContent=`⚠️ กำลังแก้ข้อมูลย้อนหลัง: ${fmtTH(selected)}`;
+      note.style.cssText='display:inline;color:var(--red);font-weight:700;font-size:12px;';
+    }
+  } else {
+    if(note){note.textContent='';note.style.display='none';}
+  }
+  renderAttPage();
+}
+
 function renderAttPage(){
-  const dp=document.getElementById('attDate');if(!dp.value)dp.value=today();
-  document.getElementById('attInfo').textContent='วันที่ '+fmtTH(dp.value);
+  const dp=document.getElementById('attDate');
+  if(!dp.value) dp.value=today();
+  // ล็อคการแก้ย้อนหลังสำหรับ non-admin
+  const isAdmin=currentUser&&currentUser.role==='admin';
+  if(!isAdmin&&dp.value!==today()) dp.value=today();
+  dp.readOnly=!isAdmin;
+  dp.style.opacity=isAdmin?'1':'0.75';
+  dp.title=isAdmin?'Admin สามารถเลือกวันที่ใดก็ได้':'เฉพาะ Admin แก้ข้อมูลย้อนหลังได้';
+  document.getElementById('attInfo').textContent='วันที่ '+fmtTH(dp.value)+(isAdmin&&dp.value!==today()?' (ย้อนหลัง)':'');
   renderAttGrid();
 }
 function renderAttGrid(){
@@ -1689,11 +1723,10 @@ function renderEmpTable(){
   document.getElementById('empCount').textContent=emps.length;
   const dates=monthDates();
   document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
-    const useFactory=e.shift&&e.shift!=='DayO';
-    const workDates=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
-    const p=workDates.filter(d=>getStatus(d,e.id)==='present').length;
-    const late2=workDates.filter(d=>getStatus(d,e.id)==='late').length;
-    const r=workDates.length?Math.round((p+late2)/workDates.length*100):0;
+    const useFactory2=e.shift&&e.shift!=='DayO';
+    const workDates=dates.filter(d=>useFactory2?isFactoryWorkday(d):isWorkday(d));
+    const p=workDates.length?workDates.filter(d=>getStatus(d,e.id)==='present').length:0;
+    const r=workDates.length?Math.round(p/workDates.length*100):0;
     return`<tr>
       <td style="color:var(--text3);">${i+1}</td>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
