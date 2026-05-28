@@ -1197,7 +1197,18 @@ function dateRangeDates(from,to){
   while(cur<=end){dates.push(cur.toISOString().split('T')[0]);cur.setDate(cur.getDate()+1);}
   return dates;
 }
-function getStatus(date,empId){return(attendanceData[date]||{})[empId]||'present';}
+// getStatus: คืนค่าสถานะจริงจาก Sheet เท่านั้น null = ยังไม่ได้บันทึก
+function getStatus(date,empId){
+  const d=attendanceData[date];
+  if(!d) return null;
+  return d[empId]||null;
+}
+// getStatusDisplay: ใช้แสดงผล (null → 'present' เฉพาะวันนี้, '-' วันอื่น)
+function getStatusDisplay(date,empId){
+  const s=getStatus(date,empId);
+  if(s) return s;
+  return date===today()?'present':'absent';
+}
 function allWorkcells(){return [...new Set(employees.map(e=>e.workcell).filter(Boolean))].sort();}
 function allPositions(){return [...new Set(employees.map(e=>e.position).filter(Boolean))].sort();}
 
@@ -1240,67 +1251,51 @@ function populatePositionSelect(){
 }
 function getDayStats(date,opts={}){
   const emps=filteredEmps(opts);
-  const s={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:emps.length};
-  emps.forEach(e=>{const st=getStatus(date,e.id);s[st]=(s[st]||0)+1;});
-  // อัตราการมาทำงาน = present เท่านั้น (ไม่รวมมาสาย)
-  s.rate=s.total?Math.round(s.present/s.total*100):0;
+  const s={present:0,absent:0,late:0,leave:0,sick:0,business:0,total:emps.length,recorded:0};
+  emps.forEach(e=>{
+    const st=getStatus(date,e.id);
+    if(st){s[st]=(s[st]||0)+1;s.recorded++;}
+  });
+  // อัตราการมาทำงาน = present ÷ จำนวนพนักงาน × 100
+  // คำนวณเฉพาะวันที่มีการบันทึกข้อมูล (recorded > 0)
+  s.rate=s.recorded>0?Math.round(s.present/s.total*100):null;
   return s;
 }
 
-// คำนวณอัตราสะสม (สัปดาห์/เดือน/ช่วงวัน)
-// = ผลรวม present ทุกวัน / ผลรวม (จำนวนพนักงาน × วันทำงาน) × 100
+// คำนวณอัตราสะสม = Σpresent ÷ Σ(total×วันที่บันทึก) × 100
 function calcRate(dates, opts={}){
   const shift=opts.shift||'';
-  const useOffice=!shift||shift==='DayO';
-  const useFactory=shift&&shift!=='DayO';
 
   if(!shift){
-    // ไม่ระบุ shift → รวมทุก shift แยกตามปฏิทิน
     let sumPresent=0, sumTotal=0;
     dates.forEach(d=>{
-      // Office workdays
       if(isWorkday(d)){
         const s=getDayStats(d,{...opts,shift:'DayO'});
-        sumPresent+=s.present; sumTotal+=s.total;
+        if(s.recorded>0){sumPresent+=s.present;sumTotal+=s.total;}
       }
-      // Factory workdays
       if(isFactoryWorkday(d)){
         ['DayF','A','B','C'].forEach(sh=>{
           const s=getDayStats(d,{...opts,shift:sh});
-          sumPresent+=s.present; sumTotal+=s.total;
+          if(s.recorded>0){sumPresent+=s.present;sumTotal+=s.total;}
         });
       }
     });
     return sumTotal?Math.round(sumPresent/sumTotal*100):0;
   }
 
-  // ระบุ shift → ใช้ปฏิทินที่ตรงกัน
-  const workDays=dates.filter(d=>useFactory?isFactoryWorkday(d):isWorkday(d));
+  const useOffice=shift==='DayO';
+  const workDays=dates.filter(d=>useOffice?isWorkday(d):isFactoryWorkday(d));
   let sumPresent=0, sumTotal=0;
   workDays.forEach(d=>{
     const s=getDayStats(d,opts);
-    sumPresent+=s.present;
-    sumTotal+=s.total;
+    if(s.recorded>0){sumPresent+=s.present;sumTotal+=s.total;}
   });
   return sumTotal?Math.round(sumPresent/sumTotal*100):0;
 }
 function initData(){
-  const now=new Date();
-  // init 3 months back for demo richness
-  const allDates=[];
-  for(let mo=-2;mo<=0;mo++){
-    const y=now.getFullYear(),m=now.getMonth()+mo;
-    allDates.push(...monthDates(y<0?y+1:y, ((m%12)+12)%12));
-  }
-  [...new Set(allDates)].forEach(date=>{
-    if(!attendanceData[date]) attendanceData[date]={};
-    employees.forEach(e=>{
-      if(attendanceData[date][e.id]==null){
-        const r=Math.random();
-        attendanceData[date][e.id]=r<.76?'present':r<.87?'late':r<.90?'sick':r<.94?'leave':r<.97?'business':'absent';
-      }
-    });
-  });
+  // ไม่สร้าง demo data อีกต่อไป
+  // ข้อมูลจริงโหลดจาก Google Sheet ผ่าน loadAttendanceFromSheet()
+  // วันที่ไม่มีข้อมูลใน Sheet = ยังไม่ได้บันทึก (default = present เมื่อเปิดหน้าบันทึก)
 }
 function populateWcSelects(){
   const wcs=allWorkcells();
@@ -1455,7 +1450,7 @@ function renderDashboard(){
   // Recent table
   const re=filteredEmps(opts).slice(0,8);
   document.getElementById('recentTable').innerHTML=re.map(e=>{
-    const st=getStatus(refDate,e.id);
+    const st=getStatusDisplay(refDate,e.id);
     return`<tr>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
       <td style="font-weight:600;">${e.firstName} ${e.lastName}</td>
@@ -1553,7 +1548,7 @@ function renderAttGrid(){
   document.getElementById('attGrid').innerHTML=emps.length===0
     ?`<div class="empty-state"><div class="icon">👥</div><p>ไม่พบพนักงานตามเงื่อนไข</p></div>`
     :emps.map(e=>{
-      const s=attendanceData[date][e.id]||'present';
+      const s=getStatus(date,e.id)||'present';
       const ci=e.id%AV_COLORS.length;
       const hrs=getShiftHours(e.shift,s);
       return`<div class="att-card">
@@ -1725,8 +1720,9 @@ function renderEmpTable(){
   document.getElementById('empTable').innerHTML=emps.map((e,i)=>{
     const useFactory2=e.shift&&e.shift!=='DayO';
     const workDates=dates.filter(d=>useFactory2?isFactoryWorkday(d):isWorkday(d));
-    const p=workDates.length?workDates.filter(d=>getStatus(d,e.id)==='present').length:0;
-    const r=workDates.length?Math.round(p/workDates.length*100):0;
+    const recordedDates=workDates.filter(d=>getStatus(d,e.id)!==null);
+    const p=recordedDates.filter(d=>getStatus(d,e.id)==='present').length;
+    const r=recordedDates.length?Math.round(p/recordedDates.length*100):0;
     return`<tr>
       <td style="color:var(--text3);">${i+1}</td>
       <td><span style="font-family:'IBM Plex Mono';font-size:12px;">${e.code}</span></td>
